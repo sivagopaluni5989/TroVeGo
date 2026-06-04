@@ -15,7 +15,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.shivagsudhir.store_gui_app"
+    namespace = "com.bravesstudio.wastatusfastsaver"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -38,7 +38,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.shivagsudhir.store_gui_app"
+        applicationId = "com.bravesstudio.wastatusfastsaver"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
