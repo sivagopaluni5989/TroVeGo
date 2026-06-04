@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'WhatsApp Status Saver',
+      title: 'WA Status Fast Saver',
       theme: ThemeData(
         primarySwatch: Colors.green,
         scaffoldBackgroundColor: const Color(0xFFF5F5F5),
@@ -85,7 +85,9 @@ class _StatusScreenState extends State<StatusScreen>
   void loadBanner() {
     bannerAd = BannerAd(
       size: AdSize.banner,
-      adUnitId: 'ca-app-pub-3940256099942544/6300978111',
+      adUnitId: Platform.isAndroid
+    ? 'ca-app-pub-8147663138065818/2224393560'
+    : '',
       listener: BannerAdListener(
         onAdLoaded: (_) {
           setState(() {
@@ -282,7 +284,7 @@ class _StatusScreenState extends State<StatusScreen>
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -398,7 +400,7 @@ class _StatusScreenState extends State<StatusScreen>
         centerTitle: true,
         backgroundColor: Colors.green,
         title: const Text(
-          'WhatsApp Status Saver',
+          'WA Status Fast Saver',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -534,10 +536,11 @@ class _PreviewScreenState
                 });
               },
               child: Icon(
-                controller!.value.isPlaying
-                    ? Icons.pause
-                    : Icons.play_arrow,
-              ),
+  (controller != null &&
+          controller!.value.isPlaying)
+      ? Icons.pause
+      : Icons.play_arrow,
+),
             )
           : null,
     );

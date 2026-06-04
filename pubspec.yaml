@@ -1,5 +1,5 @@
 name: store_gui_app
-description: "WhatsApp Status Saver"
+description: "Status Saver App"
 publish_to: "none"
 
 version: 1.0.0+1
@@ -20,7 +20,6 @@ dependencies:
   video_player: ^2.9.2
   saf: ^1.0.4
   gallery_saver_plus: ^3.2.9
-
 
 dev_dependencies:
   flutter_test:
