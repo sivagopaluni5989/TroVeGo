@@ -1,5 +1,5 @@
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:path_provider/path_provider.dart';
@@ -105,28 +105,28 @@ class _StatusScreenState extends State<StatusScreen>
   }
 
   Future<void> loadStatuses() async {
-    setState(() {
-      isLoading = true;
-    });
+  setState(() => isLoading = true);
 
-    await Permission.photos.request();
-    await Permission.videos.request();
-    await Permission.storage.request();
-    await Permission.manageExternalStorage.request();
+  final photos = await Permission.photos.request();
+  final videos = await Permission.videos.request();
+  final storage = await Permission.storage.request();
+  final manage = await Permission.manageExternalStorage.request();
 
+  if (photos.isGranted || videos.isGranted || storage.isGranted || manage.isGranted) {
     generalFiles = await loadSafFiles(whatsappPath);
-
     businessFiles = await loadSafFiles(businessPath);
-
-    await generateAllThumbnails([
-      ...generalFiles,
-      ...businessFiles,
-    ]);
-
-    setState(() {
-      isLoading = false;
-    });
+    await generateAllThumbnails([...generalFiles, ...businessFiles]);
+  } else {
+    debugPrint("Permissions denied, skipping SAF calls");
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Storage permission required")),
+      );
+    }
   }
+
+  if (mounted) setState(() => isLoading = false);
+}
 
   Future<List<String>> loadSafFiles(String path) async {
     try {
