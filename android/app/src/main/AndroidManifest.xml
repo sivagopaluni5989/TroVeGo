@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
 
@@ -15,16 +16,17 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
 
     <application
-        android:name="${applicationName}"
         android:label="WA Status Fast Saver"
         android:icon="@mipmap/ic_launcher">
 
+        <!-- Google Mobile Ads App ID -->
         <meta-data
-    android:name="com.google.android.gms.ads.APPLICATION_ID"
-    android:value="ca-app-pub-8147663138065818~6850034288"/>
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-8147663138065818~6850034288"/>
 
+        <!-- Main Activity -->
         <activity
-            android:name=".MainActivity"
+            android:name="com.shivagsudhir.store_gui_app.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"
@@ -40,13 +42,12 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-
         </activity>
 
+        <!-- Flutter embedding -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2"/>
-
     </application>
 
 </manifest>
