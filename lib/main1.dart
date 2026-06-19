@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:saf/saf.dart';
 import 'package:video_player/video_player.dart';
 import 'package:video_thumbnail_plus/video_thumbnail_plus.dart';
@@ -11,15 +10,12 @@ import 'package:gallery_saver_plus/gallery_saver.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await MobileAds.instance.initialize();
-
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -33,10 +29,8 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
 class StatusScreen extends StatefulWidget {
   const StatusScreen({super.key});
-
   @override
   State<StatusScreen> createState() => _StatusScreenState();
 }
@@ -44,41 +38,30 @@ class StatusScreen extends StatefulWidget {
 class _StatusScreenState extends State<StatusScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-
   List<String> generalFiles = [];
   List<String> businessFiles = [];
-
   Map<String, String> videoThumbnails = {};
-
   bool isLoading = false;
-
   BannerAd? bannerAd;
-
   bool adLoaded = false;
 
   final String whatsappPath =
       'Android/media/com.whatsapp/WhatsApp/Media/.Statuses';
-
   final String businessPath =
       'Android/media/com.whatsapp.w4b/WhatsApp Business/Media/.Statuses';
 
   @override
   void initState() {
     super.initState();
-
     _tabController = TabController(length: 2, vsync: this);
-
     loadBanner();
-
     loadStatuses();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-
     bannerAd?.dispose();
-
     super.dispose();
   }
 
@@ -86,8 +69,8 @@ class _StatusScreenState extends State<StatusScreen>
     bannerAd = BannerAd(
       size: AdSize.banner,
       adUnitId: Platform.isAndroid
-    ? 'ca-app-pub-8147663138065818/2224393560'
-    : '',
+          ? 'ca-app-pub-8147663138065818/2224393560'
+          : '',
       listener: BannerAdListener(
         onAdLoaded: (_) {
           setState(() {
@@ -100,147 +83,91 @@ class _StatusScreenState extends State<StatusScreen>
       ),
       request: const AdRequest(),
     );
-
     bannerAd!.load();
   }
 
   Future<void> loadStatuses() async {
-  setState(() => isLoading = true);
+    setState(() => isLoading = true);
+    final photos = await Permission.photos.request();
+    final videos = await Permission.videos.request();
+    final storage = await Permission.storage.request();
+    final manage = await Permission.manageExternalStorage.request();
 
-  final photos = await Permission.photos.request();
-  final videos = await Permission.videos.request();
-  final storage = await Permission.storage.request();
-  final manage = await Permission.manageExternalStorage.request();
-
-  if (photos.isGranted || videos.isGranted || storage.isGranted || manage.isGranted) {
-    generalFiles = await loadSafFiles(whatsappPath);
-    businessFiles = await loadSafFiles(businessPath);
-    await generateAllThumbnails([...generalFiles, ...businessFiles]);
-  } else {
-    debugPrint("Permissions denied, skipping SAF calls");
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Storage permission required")),
-      );
+    if (photos.isGranted || videos.isGranted || storage.isGranted || manage.isGranted) {
+      generalFiles = await loadSafFiles(whatsappPath);
+      businessFiles = await loadSafFiles(businessPath);
+      await generateAllThumbnails([...generalFiles, ...businessFiles]);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Storage permission required")),
+        );
+      }
     }
+    if (mounted) setState(() => isLoading = false);
   }
-
-  if (mounted) setState(() => isLoading = false);
-}
 
   Future<List<String>> loadSafFiles(String path) async {
     try {
       final saf = Saf(path);
-
-      bool? permission = await saf.getDirectoryPermission(
-        isDynamic: false,
-      );
-
+      bool? permission = await saf.getDirectoryPermission(isDynamic: false);
       if (permission == true) {
         List<String>? files = await saf.getFilesPath();
-
         if (files != null) {
-          return files.where((file) {
-            return file.endsWith('.jpg') ||
-                file.endsWith('.jpeg') ||
-                file.endsWith('.png') ||
-                file.endsWith('.mp4');
-          }).toList();
+          return files.where((file) =>
+              file.endsWith('.jpg') ||
+              file.endsWith('.jpeg') ||
+              file.endsWith('.png') ||
+              file.endsWith('.mp4')).toList();
         }
       }
     } catch (e) {
       debugPrint("SAF ERROR: $e");
     }
-
     return [];
   }
 
   Future<void> generateAllThumbnails(List<String> files) async {
     try {
       final tempDir = await getTemporaryDirectory();
-
       for (var path in files) {
         if (path.endsWith('.mp4')) {
           if (!videoThumbnails.containsKey(path)) {
-            final thumb =
-                await VideoThumbnailPlus.thumbnailFile(
+            final thumb = await VideoThumbnailPlus.thumbnailFile(
               video: path,
               thumbnailPath: tempDir.path,
               imageFormat: ImageFormat.JPEG,
               quality: 80,
               maxWidth: 400,
             );
-
             if (thumb != null) {
               videoThumbnails[path] = thumb;
             }
           }
         }
       }
-
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
     } catch (e) {
       debugPrint(e.toString());
     }
   }
 
-  Future<void> saveStatus(String filePath) async {
+  Future<void> saveToGallery(String filePath) async {
     try {
-      final file = File(filePath);
-
-      if (!await file.exists()) {
-        throw Exception('File not found');
-      }
-
-      Directory targetDir;
-
-      if (filePath.endsWith('.mp4')) {
-        targetDir = Directory(
-          '/storage/emulated/0/Movies/StatusSaver',
-        );
+      if (filePath.endsWith(".mp4")) {
+        await GallerySaver.saveVideo(filePath, albumName: "WA Status Saver");
       } else {
-        targetDir = Directory(
-          '/storage/emulated/0/Pictures/StatusSaver',
-        );
+        await GallerySaver.saveImage(filePath, albumName: "WA Status Saver");
       }
-
-      if (!await targetDir.exists()) {
-        await targetDir.create(recursive: true);
-      }
-
-      final fileName =
-          DateTime.now().millisecondsSinceEpoch.toString() +
-              (filePath.endsWith('.mp4')
-                  ? '.mp4'
-                  : '.jpg');
-
-      final savedPath = '${targetDir.path}/$fileName';
-
-      final savedFile = await file.copy(savedPath);
-
-      if (filePath.endsWith('.mp4')) {
-        await GallerySaver.saveVideo(savedFile.path);
-      } else {
-        await GallerySaver.saveImage(savedFile.path);
-      }
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Saved Successfully'),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text("Saved Successfully"), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Save failed: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text("Save failed: $e"), backgroundColor: Colors.red),
         );
       }
     }
@@ -266,8 +193,7 @@ class _StatusScreenState extends State<StatusScreen>
     return GridView.builder(
       padding: const EdgeInsets.all(10),
       itemCount: files.length,
-      gridDelegate:
-          const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
@@ -275,7 +201,6 @@ class _StatusScreenState extends State<StatusScreen>
       ),
       itemBuilder: (context, index) {
         final path = files[index];
-
         bool isVideo = path.endsWith('.mp4');
 
         return Container(
@@ -284,12 +209,13 @@ class _StatusScreenState extends State<StatusScreen>
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
+                color: Colors.black.withOpacity(0.08),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
+
           child: ClipRRect(
             borderRadius: BorderRadius.circular(22),
             child: Column(
@@ -315,17 +241,14 @@ class _StatusScreenState extends State<StatusScreen>
                               ? (videoThumbnails[path] != null
                                   ? SizedBox.expand(
                                       child: Image.file(
-                                        File(
-                                          videoThumbnails[path]!,
-                                        ),
+                                        File(videoThumbnails[path]!),
                                         fit: BoxFit.cover,
                                       ),
                                     )
                                   : Container(
                                       color: Colors.black12,
                                       child: const Center(
-                                        child:
-                                            CircularProgressIndicator(),
+                                        child: CircularProgressIndicator(),
                                       ),
                                     ))
                               : SizedBox.expand(
@@ -335,13 +258,11 @@ class _StatusScreenState extends State<StatusScreen>
                                   ),
                                 ),
                         ),
-
                         if (isVideo)
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.black54,
-                              borderRadius:
-                                  BorderRadius.circular(50),
+                              borderRadius: BorderRadius.circular(50),
                             ),
                             padding: const EdgeInsets.all(14),
                             child: const Icon(
@@ -362,15 +283,14 @@ class _StatusScreenState extends State<StatusScreen>
                     height: 50,
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        saveStatus(path);
+                        saveToGallery(path);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
+                        backgroundColor: Colors.black, // dark button
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
                       icon: const Icon(Icons.download),
@@ -398,7 +318,7 @@ class _StatusScreenState extends State<StatusScreen>
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
-        backgroundColor: Colors.green,
+        backgroundColor: Colors.black, // dark theme
         title: const Text(
           'WA Status Fast Saver',
           style: TextStyle(
@@ -410,27 +330,19 @@ class _StatusScreenState extends State<StatusScreen>
         ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.white,
+          labelColor: Colors.green,
           unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
+          indicatorColor: Colors.green,
           indicatorWeight: 4,
           tabs: const [
-            Tab(
-              icon: Icon(Icons.chat),
-              text: 'WhatsApp',
-            ),
-            Tab(
-              icon: Icon(Icons.business),
-              text: 'Business',
-            ),
+            Tab(icon: Icon(Icons.chat), text: 'WhatsApp'),
+            Tab(icon: Icon(Icons.business), text: 'Business'),
           ],
         ),
       ),
       body: isLoading
           ? const Center(
-              child: CircularProgressIndicator(
-                color: Colors.green,
-              ),
+              child: CircularProgressIndicator(color: Colors.green),
             )
           : TabBarView(
               controller: _tabController,
@@ -441,20 +353,16 @@ class _StatusScreenState extends State<StatusScreen>
             ),
       bottomNavigationBar: adLoaded
           ? SizedBox(
-              height:
-                  bannerAd!.size.height.toDouble(),
-              width:
-                  bannerAd!.size.width.toDouble(),
+              height: bannerAd!.size.height.toDouble(),
+              width: bannerAd!.size.width.toDouble(),
               child: AdWidget(ad: bannerAd!),
             )
           : null,
     );
   }
 }
-
 class PreviewScreen extends StatefulWidget {
   final String filePath;
-
   final bool isVideo;
 
   const PreviewScreen({
@@ -464,22 +372,17 @@ class PreviewScreen extends StatefulWidget {
   });
 
   @override
-  State<PreviewScreen> createState() =>
-      _PreviewScreenState();
+  State<PreviewScreen> createState() => _PreviewScreenState();
 }
 
-class _PreviewScreenState
-    extends State<PreviewScreen> {
+class _PreviewScreenState extends State<PreviewScreen> {
   VideoPlayerController? controller;
 
   @override
   void initState() {
     super.initState();
-
     if (widget.isVideo) {
-      controller = VideoPlayerController.file(
-        File(widget.filePath),
-      )
+      controller = VideoPlayerController.file(File(widget.filePath))
         ..initialize().then((_) {
           setState(() {});
           controller!.play();
@@ -492,29 +395,19 @@ class _PreviewScreenState
     controller?.dispose();
     super.dispose();
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-      ),
+      appBar: AppBar(backgroundColor: Colors.black),
       body: Center(
         child: widget.isVideo
-            ? (controller != null &&
-                    controller!
-                        .value.isInitialized)
+            ? (controller != null && controller!.value.isInitialized)
                 ? AspectRatio(
-                    aspectRatio:
-                        controller!
-                            .value.aspectRatio,
-                    child:
-                        VideoPlayer(controller!),
+                    aspectRatio: controller!.value.aspectRatio,
+                    child: VideoPlayer(controller!),
                   )
-                : const CircularProgressIndicator(
-                    color: Colors.green,
-                  )
+                : const CircularProgressIndicator(color: Colors.green)
             : InteractiveViewer(
                 child: Image.file(
                   File(widget.filePath),
@@ -527,8 +420,7 @@ class _PreviewScreenState
               backgroundColor: Colors.green,
               onPressed: () {
                 setState(() {
-                  if (controller!
-                      .value.isPlaying) {
+                  if (controller!.value.isPlaying) {
                     controller!.pause();
                   } else {
                     controller!.play();
@@ -536,11 +428,10 @@ class _PreviewScreenState
                 });
               },
               child: Icon(
-  (controller != null &&
-          controller!.value.isPlaying)
-      ? Icons.pause
-      : Icons.play_arrow,
-),
+                (controller != null && controller!.value.isPlaying)
+                    ? Icons.pause
+                    : Icons.play_arrow,
+              ),
             )
           : null,
     );
