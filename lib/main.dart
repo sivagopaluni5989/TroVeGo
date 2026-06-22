@@ -777,122 +777,68 @@ class _StatusHomePageState extends State<StatusHomePage>
   // Return StatusFile objects
   // ======================================================
 
-  Future<List<StatusFile>> loadFromSafFolder(
-    String folder,
-  ) async {
-    List<StatusFile> statusFiles = [];
+  Future<List<StatusFile>> loadFromSafFolder(String folder) async {
+  List<StatusFile> statusFiles = [];
 
-    try {
-      final saf = Saf(folder);
+  try {
+    final saf = Saf(folder);
 
-      final permission = await saf.getDirectoryPermission(
-            isDynamic: true,
-          ) ??
-          false;
+    final permission =
+        await saf.getDirectoryPermission(isDynamic: true) ?? false;
 
-      if (!permission) {
-        debugPrint(
-          "SAF permission missing: $folder",
-        );
-
-        return [];
-      }
-
-      final files = await saf.getFilesPath();
-
-      if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(
-             content: Text(
-               "Folder: $folder | Files: ${files?.length ?? 0}",
-             ),
-             duration: const Duration(seconds: 5),
-           ),
-         );
-       }
-      if (files != null && files.isNotEmpty && mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(
-             content: Text(files.first.toString()),
-             duration: const Duration(seconds: 10),
-           ),
-         );
-       }
-
-      if (files == null || files.isEmpty) {
-         debugPrint("No status files found");
-         return [];
-      }
-      
-
-
-      final cacheDir = await getTemporaryDirectory();
-
-      for (final originalPath in files) {
-        try {
-          final lower = originalPath.toLowerCase();
-
-          final isImage = lower.endsWith(".jpg") ||
-              lower.endsWith(".jpeg") ||
-              lower.endsWith(".png");
-
-          final isVideo = lower.endsWith(".mp4");
-
-          if (!isImage && !isVideo) {
-            continue;
-          }
-
-          final source = File(originalPath);
-
-          final exists = await source.exists();
-
-          debugPrint("Checking file: $originalPath");
-          debugPrint("Exists: $exists");
-
-// Skip inaccessible files
-          if (!exists) {
-           debugPrint(
-             "Cannot access: $originalPath",
-           );
-
-           continue;
-      }
-
-          final extension = originalPath.split(".").last;
-
-          final cachePath = "${cacheDir.path}/wa_status_"
-              "${DateTime.now().microsecondsSinceEpoch}"
-              ".$extension";
-
-          final copied = await source.copy(
-            cachePath,
-          );
-
-          statusFiles.add(
-            StatusFile(
-              name: copied.path.split("/").last,
-              cachePath: copied.path,
-              isVideo: isVideo,
-            ),
-          );
-        } catch (e) {
-          debugPrint(
-            "Single file copy failed: $e",
-          );
-        }
-      }
-
-      debugPrint(
-        "Loaded ${statusFiles.length} status files",
-      );
-    } catch (e) {
-      debugPrint(
-        "SAF loading error: $e",
-      );
+    if (!permission) {
+      debugPrint("SAF permission missing: $folder");
+      return [];
     }
 
-    return statusFiles;
+    final files = await saf.getFilesPath();
+
+    if (files == null || files.isEmpty) {
+      debugPrint("No status files found");
+      return [];
+    }
+
+    final cacheDir = await getTemporaryDirectory();
+
+    for (final originalPath in files) {
+      try {
+        final lower = originalPath.toLowerCase();
+
+        final isImage = lower.endsWith(".jpg") ||
+            lower.endsWith(".jpeg") ||
+            lower.endsWith(".png");
+
+        final isVideo = lower.endsWith(".mp4");
+
+        if (!isImage && !isVideo) continue;
+
+        final uri = Uri.parse(originalPath);
+        final bytes = await File.fromUri(uri).readAsBytes();
+
+        final extension = originalPath.split(".").last;
+
+        final cachePath =
+            "${cacheDir.path}/wa_status_${DateTime.now().microsecondsSinceEpoch}.$extension";
+
+        final copied = await File(cachePath).writeAsBytes(bytes);
+
+        statusFiles.add(StatusFile(
+          name: copied.path.split("/").last,
+          cachePath: copied.path,
+          isVideo: isVideo,
+        ));
+      } catch (e) {
+        debugPrint("Single file copy failed: $e");
+      }
+    }
+
+    debugPrint("Loaded ${statusFiles.length} status files");
+  } catch (e) {
+    debugPrint("SAF loading error: $e");
   }
+
+  return statusFiles;
+}
 
   // ======================================================
   // Generate video thumbnails
