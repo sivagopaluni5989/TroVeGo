@@ -137,12 +137,12 @@ class _HomeControllerState extends State<HomeController> {
       final businessSaf = Saf(AppConstants.businessFolder);
 
       whatsappGranted = await whatsappSaf.getDirectoryPermission(
-            isDynamic: false,
+            isDynamic: true,
           ) ??
           false;
 
       businessGranted = await businessSaf.getDirectoryPermission(
-            isDynamic: false,
+            isDynamic: true,
           ) ??
           false;
 
@@ -804,14 +804,13 @@ class _StatusHomePageState extends State<StatusHomePage>
       debugPrint("Files count: ${files?.length}"); 
       debugPrint("Files: $files");
 
-
       if (files == null || files.isEmpty) {
-        debugPrint(
-          "No status files found",
-        );
-
-        return [];
+        throw Exception("SAF returned 0 files");
       }
+
+      throw Exception("First file: ${files.first}");
+      
+
 
       final cacheDir = await getTemporaryDirectory();
 
