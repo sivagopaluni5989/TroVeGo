@@ -799,16 +799,30 @@ class _StatusHomePageState extends State<StatusHomePage>
       }
 
       final files = await saf.getFilesPath();
-      
-      debugPrint("Folder: $folder");
-      debugPrint("Files count: ${files?.length}"); 
-      debugPrint("Files: $files");
+
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(
+             content: Text(
+               "Folder: $folder | Files: ${files?.length ?? 0}",
+             ),
+             duration: const Duration(seconds: 5),
+           ),
+         );
+       }
+      if (files != null && files.isNotEmpty && mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(
+             content: Text(files.first.toString()),
+             duration: const Duration(seconds: 10),
+           ),
+         );
+       }
 
       if (files == null || files.isEmpty) {
-        throw Exception("SAF returned 0 files");
+         debugPrint("No status files found");
+         return [];
       }
-
-      throw Exception("First file: ${files.first}");
       
 
 
@@ -830,14 +844,19 @@ class _StatusHomePageState extends State<StatusHomePage>
 
           final source = File(originalPath);
 
-          // Skip inaccessible files
-          if (!await source.exists()) {
-            debugPrint(
-              "Cannot access: $originalPath",
-            );
+          final exists = await source.exists();
 
-            continue;
-          }
+          debugPrint("Checking file: $originalPath");
+          debugPrint("Exists: $exists");
+
+// Skip inaccessible files
+          if (!exists) {
+           debugPrint(
+             "Cannot access: $originalPath",
+           );
+
+           continue;
+      }
 
           final extension = originalPath.split(".").last;
 
@@ -1127,7 +1146,7 @@ class _StatusHomePageState extends State<StatusHomePage>
               height: 15,
             ),
             const Text(
-              "TEST BUILD 12345",
+              "No Status Found",
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
