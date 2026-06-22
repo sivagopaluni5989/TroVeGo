@@ -697,6 +697,17 @@ class _StatusHomePageState extends State<StatusHomePage>
 
   Future<void> loadStatuses() async {
     try {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "WA Access=${widget.whatsappAccess}, Business=${widget.businessAccess}",
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+
       if (widget.whatsappAccess) {
         final waFiles = await loadFromSafFolder(
           AppConstants.whatsappFolder,
