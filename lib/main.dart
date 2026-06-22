@@ -793,11 +793,21 @@ class _StatusHomePageState extends State<StatusHomePage>
 
     final files = await saf.getFilesPath();
 
-    debugPrint("FILES FROM SAF ($folder): $files");
-    if (files == null || files.isEmpty) {
-      debugPrint("No status files found");
-      return [];
+    debugPrint("========== SAF DEBUG ==========");
+    debugPrint("Folder URI: $folder");
+    debugPrint("Files count: ${files?.length ?? 0}");
+
+    if (files != null) {
+      for (final f in files) {
+        debugPrint("SAF FILE => $f");
     }
+   }
+   debugPrint("===============================");
+
+    if (files == null || files.isEmpty) {
+    debugPrint("No status files found");
+    return [];
+   }
 
     final cacheDir = await getTemporaryDirectory();
 
