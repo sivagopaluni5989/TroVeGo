@@ -788,120 +788,107 @@ class _StatusHomePageState extends State<StatusHomePage>
   // Return StatusFile objects
   // ======================================================
 
-  Future<List<StatusFile>> loadFromSafFolder(String folder) async {
-    List<StatusFile> statusFiles = [];
+Future<List<StatusFile>> loadFromSafFolder(String folder) async {
+  List<StatusFile> statusFiles = [];
 
-    debugPrint("ENTERED loadFromSafFolder: $folder");
+  debugPrint("ENTERED loadFromSafFolder: $folder");
+
+  if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("ENTERED loadFromSafFolder"),
+        duration: Duration(seconds: 4),
+      ),
+    );
+  }
+
+  try {
+    final saf = Saf(folder);
+
+    final permission =
+        await saf.getDirectoryPermission(isDynamic: true) ?? false;
+
+    final dirs = await Saf.getPersistedPermissionDirectories();
+    debugPrint("PERSISTED DIRS = $dirs");
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("ENTERED loadFromSafFolder"),
-          duration: const Duration(seconds: 4),
+          content: Text("Permission=$permission"),
+          duration: const Duration(seconds: 5),
         ),
       );
     }
 
-    try {
-      final saf = Saf(folder);
-
-      final permission =
-          await saf.getDirectoryPermission(isDynamic: true) ?? false;
-      final dirs = await Saf.getPersistedPermissionDirectories();
-debugPrint("PERSISTED DIRS = $dirs");
-
-       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Permission=$permission"),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-
-      if (!permission) {
-  debugPrint("SAF permission missing: $folder");
-  return [];
-}
-
-final files = await saf.cache();
-final paths = await saf.getFilesPath();
-
-if (mounted) {
-  showDialog(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: const Text("FILES PATH"),
-      content: Text(
-        "Count=${paths?.length ?? 0}",
-      ),
-    ),
-  );
-}
-
-if (mounted) {
-  showDialog(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: const Text("SAF CACHE"),
-      content: Text(
-        "Cached files=${files?.length ?? 0}",
-      ),
-    ),
-  );
-}
-
-      if (files == null || files.isEmpty) {
-        debugPrint("SAF cache returned 0 files");
-        return [];
-      }
-
-      final cacheDir = await getTemporaryDirectory();
-
-      for (final originalPath in files) {
-        try {
-          final lower = originalPath.toLowerCase();
-
-          final isImage = lower.endsWith(".jpg") ||
-              lower.endsWith(".jpeg") ||
-              lower.endsWith(".png");
-
-          final isVideo = lower.endsWith(".mp4");
-
-          if (!isImage && !isVideo) continue;
-
-          final sourceFile = File(originalPath);
-
-          if (!await sourceFile.exists()) {
-            debugPrint("Missing cached file: $originalPath");
-            continue;
-          }
-
-          final extension = originalPath.split(".").last;
-
-          final cachePath =
-              "${cacheDir.path}/wa_status_${DateTime.now().microsecondsSinceEpoch}.$extension";
-
-          final copied = await sourceFile.copy(cachePath);
-
-          statusFiles.add(
-            StatusFile(
-              name: copied.path.split("/").last,
-              cachePath: copied.path,
-              isVideo: isVideo,
-            ),
-          );
-        } catch (e) {
-          debugPrint("Single file copy failed: $e");
-        }
-      }
-      debugPrint("Loaded ${statusFiles.length} status files");
-    } catch (e) {
-      debugPrint("SAF loading error: $e");
+    if (!permission) {
+      debugPrint("SAF permission missing: $folder");
+      return [];
     }
 
-    return statusFiles;
+    final files = await saf.getFilesPath();
+
+    if (files != null && files.isNotEmpty && mounted) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("FIRST FILE"),
+          content: Text(files.first),
+        ),
+      );
+    }
+
+    if (files == null || files.isEmpty) {
+      debugPrint("SAF returned 0 files");
+      return [];
+    }
+
+    final cacheDir = await getTemporaryDirectory();
+
+    for (final originalPath in files) {
+      try {
+        final lower = originalPath.toLowerCase();
+
+        final isImage = lower.endsWith(".jpg") ||
+            lower.endsWith(".jpeg") ||
+            lower.endsWith(".png");
+
+        final isVideo = lower.endsWith(".mp4");
+
+        if (!isImage && !isVideo) continue;
+
+        final sourceFile = File(originalPath);
+
+        if (!await sourceFile.exists()) {
+          debugPrint("File not accessible: $originalPath");
+          continue;
+        }
+
+        final extension = originalPath.split(".").last;
+
+        final cachePath =
+            "${cacheDir.path}/wa_status_${DateTime.now().microsecondsSinceEpoch}.$extension";
+
+        final copied = await sourceFile.copy(cachePath);
+
+        statusFiles.add(
+          StatusFile(
+            name: copied.path.split("/").last,
+            cachePath: copied.path,
+            isVideo: isVideo,
+          ),
+        );
+      } catch (e) {
+        debugPrint("Single file copy failed: $e");
+      }
+    }
+
+    debugPrint("Loaded ${statusFiles.length} status files");
+  } catch (e) {
+    debugPrint("SAF loading error: $e");
   }
+
+  return statusFiles;
+}
 
   // ======================================================
   // Generate video thumbnails
