@@ -820,31 +820,36 @@ debugPrint("PERSISTED DIRS = $dirs");
       }
 
       if (!permission) {
-        debugPrint("SAF permission missing: $folder");
-        return [];
-      }
-      final files = await saf.cache();
-      final paths = await saf.getFilesPath();
-
-debugPrint("FILES PATH COUNT = ${paths?.length ?? 0}");
-
-if (paths != null) {
-  for (final p in paths) {
-    debugPrint("PATH => $p");
-  }
+  debugPrint("SAF permission missing: $folder");
+  return [];
 }
 
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text("SAF CACHE"),
-            content: Text(
-              "Cached files=${files?.length ?? 0}",
-            ),
-          ),
-        );
-      }
+final files = await saf.cache();
+final paths = await saf.getFilesPath();
+
+if (mounted) {
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text("FILES PATH"),
+      content: Text(
+        "Count=${paths?.length ?? 0}",
+      ),
+    ),
+  );
+}
+
+if (mounted) {
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text("SAF CACHE"),
+      content: Text(
+        "Cached files=${files?.length ?? 0}",
+      ),
+    ),
+  );
+}
 
       if (files == null || files.isEmpty) {
         debugPrint("SAF cache returned 0 files");
