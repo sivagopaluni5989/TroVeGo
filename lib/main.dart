@@ -791,11 +791,30 @@ class _StatusHomePageState extends State<StatusHomePage>
   Future<List<StatusFile>> loadFromSafFolder(String folder) async {
     List<StatusFile> statusFiles = [];
 
+    debugPrint("ENTERED loadFromSafFolder: $folder");
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("ENTERED loadFromSafFolder"),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+
     try {
       final saf = Saf(folder);
 
       final permission =
           await saf.getDirectoryPermission(isDynamic: true) ?? false;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Permission=$permission"),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
 
       if (!permission) {
         debugPrint("SAF permission missing: $folder");
@@ -803,6 +822,20 @@ class _StatusHomePageState extends State<StatusHomePage>
       }
 
       final files = await saf.getFilesPath();
+
+if (mounted) {
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text("SAF Debug"),
+      content: Text(
+        "Permission=$permission\nFiles=${files?.length ?? 0}",
+      ),
+    ),
+  );
+}
+
+
 
       debugPrint("========== SAF DEBUG ==========");
       debugPrint("Folder URI: $folder");
