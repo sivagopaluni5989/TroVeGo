@@ -858,10 +858,23 @@ Future<List<StatusFile>> loadFromSafFolder(String folder) async {
 
         final sourceFile = File(originalPath);
 
-        if (!await sourceFile.exists()) {
-          debugPrint("File not accessible: $originalPath");
-          continue;
-        }
+final exists = await sourceFile.exists();
+
+if (mounted) {
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text("FILE EXISTS"),
+      content: Text(
+        "$exists\n\n$originalPath",
+      ),
+    ),
+  );
+}
+
+if (!exists) {
+  continue;
+}
 
         final extension = originalPath.split(".").last;
 
