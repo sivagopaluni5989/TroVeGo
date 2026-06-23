@@ -807,7 +807,10 @@ class _StatusHomePageState extends State<StatusHomePage>
 
       final permission =
           await saf.getDirectoryPermission(isDynamic: true) ?? false;
-      if (mounted) {
+      final dirs = await Saf.getPersistedPermissionDirectories();
+debugPrint("PERSISTED DIRS = $dirs");
+
+       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Permission=$permission"),
@@ -821,6 +824,15 @@ class _StatusHomePageState extends State<StatusHomePage>
         return [];
       }
       final files = await saf.cache();
+      final paths = await saf.getFilesPath();
+
+debugPrint("FILES PATH COUNT = ${paths?.length ?? 0}");
+
+if (paths != null) {
+  for (final p in paths) {
+    debugPrint("PATH => $p");
+  }
+}
 
       if (mounted) {
         showDialog(
