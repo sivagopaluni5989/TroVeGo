@@ -868,6 +868,15 @@ if (mounted) {
 
       for (final originalPath in files) {
         try {
+            if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(originalPath),
+          duration: const Duration(seconds: 10),
+        ),
+      );
+    }
+
           final lower = originalPath.toLowerCase();
 
           final isImage = lower.endsWith(".jpg") ||
@@ -893,9 +902,21 @@ if (mounted) {
             cachePath: copied.path,
             isVideo: isVideo,
           ));
-        } catch (e) {
-          debugPrint("Single file copy failed: $e");
-        }
+} catch (e) {
+  if (mounted) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("FILE ERROR"),
+        content: Text(
+          "$originalPath\n\n$e",
+        ),
+      ),
+    );
+  }
+
+  debugPrint("Single file copy failed: $e");
+}
       }
 
       debugPrint("Loaded ${statusFiles.length} status files");
