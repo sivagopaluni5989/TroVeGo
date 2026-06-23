@@ -787,29 +787,16 @@ class _StatusHomePageState extends State<StatusHomePage>
   //      ↓
   // Return StatusFile objects
   // ======================================================
-
 Future<List<StatusFile>> loadFromSafFolder(String folder) async {
   List<StatusFile> statusFiles = [];
 
   debugPrint("ENTERED loadFromSafFolder: $folder");
-
-  if (mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("ENTERED loadFromSafFolder"),
-        duration: Duration(seconds: 4),
-      ),
-    );
-  }
 
   try {
     final saf = Saf(folder);
 
     final permission =
         await saf.getDirectoryPermission(isDynamic: true) ?? false;
-
-    final dirs = await Saf.getPersistedPermissionDirectories();
-    debugPrint("PERSISTED DIRS = $dirs");
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -838,7 +825,7 @@ Future<List<StatusFile>> loadFromSafFolder(String folder) async {
     }
 
     if (files == null || files.isEmpty) {
-      debugPrint("SAF returned 0 files");
+      debugPrint("No files returned from SAF");
       return [];
     }
 
@@ -848,17 +835,23 @@ Future<List<StatusFile>> loadFromSafFolder(String folder) async {
       try {
         final lower = originalPath.toLowerCase();
 
-        final isImage = lower.endsWith(".jpg") ||
+        final isImage =
+            lower.endsWith(".jpg") ||
             lower.endsWith(".jpeg") ||
             lower.endsWith(".png");
 
-        final isVideo = lower.endsWith(".mp4");
+        final isVideo =
+            lower.endsWith(".mp4") ||
+            lower.endsWith(".mov") ||
+            lower.endsWith(".3gp");
 
-        if (!isImage && !isVideo) continue;
+        if (!isImage && !isVideo) {
+          continue;
+        }
 
         final sourceFile = File(originalPath);
 
-final exists = await sourceFile.exists();
+        final exists = await sourceFile.exists();
 
 if (mounted) {
   showDialog(
@@ -873,6 +866,7 @@ if (mounted) {
 }
 
 if (!exists) {
+  debugPrint("Missing file: $originalPath");
   continue;
 }
 
@@ -893,6 +887,18 @@ if (!exists) {
       } catch (e) {
         debugPrint("Single file copy failed: $e");
       }
+    }
+
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("FINAL COUNT"),
+          content: Text(
+            statusFiles.length.toString(),
+          ),
+        ),
+      );
     }
 
     debugPrint("Loaded ${statusFiles.length} status files");
