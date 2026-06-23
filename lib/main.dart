@@ -820,47 +820,22 @@ class _StatusHomePageState extends State<StatusHomePage>
         debugPrint("SAF permission missing: $folder");
         return [];
       }
+      final files = await saf.cache();
 
-      final files = await saf.getFilesPath();
-
-if (mounted) {
-  showDialog(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: const Text("SAF Debug"),
-      content: Text(
-        "Permission=$permission\nFiles=${files?.length ?? 0}",
-      ),
-    ),
-  );
-}
-
-
-
-      debugPrint("========== SAF DEBUG ==========");
-      debugPrint("Folder URI: $folder");
-      debugPrint("Files count: ${files?.length ?? 0}");
-
-      if (files != null) {
-        for (final f in files) {
-          debugPrint("SAF FILE => $f");
-        }
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("SAF CACHE"),
+            content: Text(
+              "Cached files=${files?.length ?? 0}",
+            ),
+          ),
+        );
       }
-      debugPrint("===============================");
 
       if (files == null || files.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                "SAF returned ${files?.length ?? 0} files",
-              ),
-              duration: const Duration(seconds: 8),
-            ),
-          );
-        }
-
-        debugPrint("No status files found");
+        debugPrint("SAF cache returned 0 files");
         return [];
       }
 
@@ -868,15 +843,6 @@ if (mounted) {
 
       for (final originalPath in files) {
         try {
-            if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(originalPath),
-          duration: const Duration(seconds: 10),
-        ),
-      );
-    }
-
           final lower = originalPath.toLowerCase();
 
           final isImage = lower.endsWith(".jpg") ||
@@ -887,38 +853,31 @@ if (mounted) {
 
           if (!isImage && !isVideo) continue;
 
-          final uri = Uri.parse(originalPath);
-          final bytes = await File.fromUri(uri).readAsBytes();
+          final sourceFile = File(originalPath);
+
+          if (!await sourceFile.exists()) {
+            debugPrint("Missing cached file: $originalPath");
+            continue;
+          }
 
           final extension = originalPath.split(".").last;
 
           final cachePath =
               "${cacheDir.path}/wa_status_${DateTime.now().microsecondsSinceEpoch}.$extension";
 
-          final copied = await File(cachePath).writeAsBytes(bytes);
+          final copied = await sourceFile.copy(cachePath);
 
-          statusFiles.add(StatusFile(
-            name: copied.path.split("/").last,
-            cachePath: copied.path,
-            isVideo: isVideo,
-          ));
-} catch (e) {
-  if (mounted) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("FILE ERROR"),
-        content: Text(
-          "$originalPath\n\n$e",
-        ),
-      ),
-    );
-  }
-
-  debugPrint("Single file copy failed: $e");
-}
+          statusFiles.add(
+            StatusFile(
+              name: copied.path.split("/").last,
+              cachePath: copied.path,
+              isVideo: isVideo,
+            ),
+          );
+        } catch (e) {
+          debugPrint("Single file copy failed: $e");
+        }
       }
-
       debugPrint("Loaded ${statusFiles.length} status files");
     } catch (e) {
       debugPrint("SAF loading error: $e");
