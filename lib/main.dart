@@ -798,25 +798,26 @@ Future<List<StatusFile>> loadFromSafFolder(String folder) async {
       return [];
     }
 
-    final files = await saf.getFilesPath(); // returns content:// URIs
-    if (files == null || files.isEmpty) {
+    final uris = await saf.getFilesPath(); // content:// URIs
+    if (uris == null || uris.isEmpty) {
       debugPrint("No files returned from SAF");
       return [];
     }
 
     final cacheDir = await getTemporaryDirectory();
 
-    for (final uri in files) {
+    for (final uri in uris) {
       try {
         final lower = uri.toLowerCase();
         final isImage = lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png");
         final isVideo = lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".3gp");
         if (!isImage && !isVideo) continue;
 
-        // SAF-safe read
-        final bytes = await saf.readBytes(uri);
+        // Wrap URI into SafFile
+        // Read bytes from file path
+final bytes = await File(uri).readAsBytes();
 
-        final extension = uri.split(".").last;
+final extension = uri.split(".").last;
         final cachePath =
             "${cacheDir.path}/wa_status_${DateTime.now().microsecondsSinceEpoch}.$extension";
 
@@ -839,6 +840,8 @@ Future<List<StatusFile>> loadFromSafFolder(String folder) async {
   }
   return statusFiles;
 }
+
+
 
 
 
