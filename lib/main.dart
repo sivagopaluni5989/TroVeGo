@@ -810,46 +810,51 @@ Future<List<StatusFile>> loadFromSafFolder(String folder) async {
   try {
     final saf = Saf(folder);
 
-    final uris = await saf.getFilesPath();
+    final files = await saf.getFilesPath() ?? [];
 
-    debugPrint("========== SAF DEBUG ==========");
-    debugPrint("Folder: $folder");
-    debugPrint("Files returned: ${uris?.length ?? 0}");
+   debugPrint("========== SAF DEBUG ==========");
+debugPrint("Folder: $folder");
+debugPrint("Files returned: ${files.length}");
 
-    if (uris != null) {
-      for (final file in uris.take(10)) {
-        debugPrint("SAF FILE -> $file");
-      }
-    }
+for (final file in files.take(10)) {
+  debugPrint("SAF FILE -> $file");
+}
 
-    if (uris == null || uris.isEmpty) {
-      debugPrint("No files returned from SAF");
-      return [];
-    }
+if (files.isEmpty) {
+  debugPrint("No files returned from SAF");
+  return [];
+}
 
-    for (final uri in uris) {
-      final lower = uri.toLowerCase();
+    for (final path in files) {
+  debugPrint("SAF FILE -> $path");
 
-      final isImage =
-          lower.endsWith(".jpg") ||
-          lower.endsWith(".jpeg") ||
-          lower.endsWith(".png");
+  final lower = path.toLowerCase();
 
-      final isVideo =
-          lower.endsWith(".mp4") ||
-          lower.endsWith(".mov") ||
-          lower.endsWith(".3gp");
+  final isImage = lower.endsWith('.jpg') ||
+      lower.endsWith('.jpeg') ||
+      lower.endsWith('.png');
 
-      if (!isImage && !isVideo) continue;
+  final isVideo = lower.endsWith('.mp4') ||
+      lower.endsWith('.mov') ||
+      lower.endsWith('.3gp');
 
-      statusFiles.add(
-        StatusFile(
-          name: uri.split('/').last,
-          cachePath: uri,
-          isVideo: isVideo,
-        ),
-      );
-    }
+  if (!isImage && !isVideo) {
+    continue;
+  }
+
+  if (!File(path).existsSync()) {
+    debugPrint("File not found -> $path");
+    continue;
+  }
+
+  statusFiles.add(
+    StatusFile(
+      name: path.split('/').last,
+      cachePath: path,
+      isVideo: isVideo,
+    ),
+  );
+}
 
     debugPrint("Loaded ${statusFiles.length} status files");
   } catch (e) {
@@ -879,6 +884,12 @@ Future<List<StatusFile>> loadFromSafFolder(String folder) async {
         )) {
           continue;
         }
+        
+
+        if (!File(video.cachePath).existsSync()) {
+  debugPrint("Video file missing: ${video.cachePath}");
+  continue;
+}
 
         final thumbnail = await VideoThumbnailPlus.thumbnailFile(
           video: video.cachePath,
@@ -1196,25 +1207,20 @@ Future<List<StatusFile>> loadFromSafFolder(String folder) async {
                                 ),
                               ),
                             )
-                      : Image.file(
-                          File(
-                            status.cachePath,
-                          ),
-                          fit: BoxFit.cover,
-                          errorBuilder: (
-                            context,
-                            error,
-                            stackTrace,
-                          ) {
-                            return Container(
-                              color: Colors.grey.shade300,
-                              child: const Icon(
-                                Icons.broken_image,
-                                size: 50,
-                              ),
-                            );
-                          },
-                        ),
+                      : File(status.cachePath).existsSync()
+    ? Image.file(
+        File(status.cachePath),
+        fit: BoxFit.cover,
+      )
+    : Container(
+        color: Colors.grey.shade300,
+        child: const Center(
+          child: Icon(
+            Icons.broken_image,
+            size: 50,
+          ),
+        ),
+      ),
 
                   // =============================
                   // Video play icon
