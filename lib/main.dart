@@ -787,43 +787,18 @@ class _StatusHomePageState extends State<StatusHomePage>
   //      ↓
   // Return StatusFile objects
   // ======================================================
+
 Future<List<StatusFile>> loadFromSafFolder(String folder) async {
   List<StatusFile> statusFiles = [];
-
-  debugPrint("ENTERED loadFromSafFolder: $folder");
-
   try {
     final saf = Saf(folder);
-
-    final permission =
-        await saf.getDirectoryPermission(isDynamic: true) ?? false;
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Permission=$permission"),
-          duration: const Duration(seconds: 5),
-        ),
-      );
-    }
-
+    final permission = await saf.getDirectoryPermission(isDynamic: true) ?? false;
     if (!permission) {
       debugPrint("SAF permission missing: $folder");
       return [];
     }
 
-    final files = await saf.getFilesPath();
-
-    if (files != null && files.isNotEmpty && mounted) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text("FIRST FILE"),
-          content: Text(files.first),
-        ),
-      );
-    }
-
+    final files = await saf.getFilesPath(); // returns content:// URIs
     if (files == null || files.isEmpty) {
       debugPrint("No files returned from SAF");
       return [];
@@ -831,83 +806,43 @@ Future<List<StatusFile>> loadFromSafFolder(String folder) async {
 
     final cacheDir = await getTemporaryDirectory();
 
-    for (final originalPath in files) {
+    for (final uri in files) {
       try {
-        final lower = originalPath.toLowerCase();
+        final lower = uri.toLowerCase();
+        final isImage = lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png");
+        final isVideo = lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".3gp");
+        if (!isImage && !isVideo) continue;
 
-        final isImage =
-            lower.endsWith(".jpg") ||
-            lower.endsWith(".jpeg") ||
-            lower.endsWith(".png");
+        // SAF-safe read
+        final bytes = await saf.readBytesFromUri(uri);
 
-        final isVideo =
-            lower.endsWith(".mp4") ||
-            lower.endsWith(".mov") ||
-            lower.endsWith(".3gp");
-
-        if (!isImage && !isVideo) {
-          continue;
-        }
-
-        final sourceFile = File(originalPath);
-
-        final exists = await sourceFile.exists();
-
-if (mounted) {
-  showDialog(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: const Text("FILE EXISTS"),
-      content: Text(
-        "$exists\n\n$originalPath",
-      ),
-    ),
-  );
-}
-
-if (!exists) {
-  debugPrint("Missing file: $originalPath");
-  continue;
-}
-
-        final extension = originalPath.split(".").last;
-
+        final extension = uri.split(".").last;
         final cachePath =
             "${cacheDir.path}/wa_status_${DateTime.now().microsecondsSinceEpoch}.$extension";
 
-        final copied = await sourceFile.copy(cachePath);
+        final cacheFile = File(cachePath);
+        await cacheFile.writeAsBytes(bytes);
 
-        statusFiles.add(
-          StatusFile(
-            name: copied.path.split("/").last,
-            cachePath: copied.path,
-            isVideo: isVideo,
-          ),
-        );
+        statusFiles.add(StatusFile(
+          name: cacheFile.path.split("/").last,
+          cachePath: cacheFile.path,
+          isVideo: isVideo,
+        ));
       } catch (e) {
         debugPrint("Single file copy failed: $e");
       }
-    }
-
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text("FINAL COUNT"),
-          content: Text(
-            statusFiles.length.toString(),
-          ),
-        ),
-      );
     }
 
     debugPrint("Loaded ${statusFiles.length} status files");
   } catch (e) {
     debugPrint("SAF loading error: $e");
   }
-
   return statusFiles;
 }
+
+
+
+
 
   // ======================================================
   // Generate video thumbnails
