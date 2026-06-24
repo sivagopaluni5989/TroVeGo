@@ -813,8 +813,9 @@ Future<List<StatusFile>> loadFromSafFolder(String folder) async {
         final isVideo = lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".3gp");
         if (!isImage && !isVideo) continue;
 
-        // SAF-safe read
-        final bytes = await saf.readBytesFromUri(uri);
+        // SAF-safe open
+        final safFile = await saf.openFile(uri);
+        final bytes = await safFile.readBytes();
 
         final extension = uri.split(".").last;
         final cachePath =
@@ -839,7 +840,6 @@ Future<List<StatusFile>> loadFromSafFolder(String folder) async {
   }
   return statusFiles;
 }
-
 
 
 
