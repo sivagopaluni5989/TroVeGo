@@ -49,10 +49,10 @@ class AppConstants {
   static const Color backgroundColor = Color(0xFFF5F5F5);
 
   static const String whatsappFolder =
-      "Android/media/com.whatsapp/WhatsApp/Media/.Statuses";
+      "/storage/emulated/0/Android/media/com.whatsapp/WhatsApp/Media/.Statuses";
 
   static const String businessFolder =
-      "Android/media/com.whatsapp.w4b/WhatsApp Business/Media/.Statuses";
+      "/storage/emulated/0/Android/media/com.whatsapp.w4b/WhatsApp Business/Media/.Statuses";
 
   static const String saveAlbum = "WA Status Saver";
 }
@@ -227,13 +227,29 @@ class AccessAuthorizationScreen extends StatelessWidget {
     String folder,
     String name,
   ) async {
-    try {
-      final saf = Saf(folder);
+  try {
+  final saf = Saf(folder);
 
-      final granted = await saf.getDirectoryPermission(
-            isDynamic: true,
-          ) ??
-          false;
+  // Ask permission only once and keep it permanently
+  final granted = await saf.getDirectoryPermission(
+        isDynamic: false,
+      ) ??
+      false;
+
+  debugPrint("SAF permission result for $folder = $granted");
+
+  if (!granted) {
+    debugPrint("User denied SAF permission");
+    return;
+  }
+
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("WhatsApp folder access granted"),
+      ),
+    );
+  }  
 
       if (granted) {
         if (context.mounted) {
@@ -789,60 +805,59 @@ class _StatusHomePageState extends State<StatusHomePage>
   // ======================================================
 
 Future<List<StatusFile>> loadFromSafFolder(String folder) async {
-  List<StatusFile> statusFiles = [];
+  final List<StatusFile> statusFiles = [];
+
   try {
     final saf = Saf(folder);
-    final permission = await saf.getDirectoryPermission(isDynamic: true) ?? false;
-    if (!permission) {
-      debugPrint("SAF permission missing: $folder");
-      return [];
+
+    final uris = await saf.getFilesPath();
+
+    debugPrint("========== SAF DEBUG ==========");
+    debugPrint("Folder: $folder");
+    debugPrint("Files returned: ${uris?.length ?? 0}");
+
+    if (uris != null) {
+      for (final file in uris.take(10)) {
+        debugPrint("SAF FILE -> $file");
+      }
     }
 
-    final uris = await saf.getFilesPath(); // content:// URIs
     if (uris == null || uris.isEmpty) {
       debugPrint("No files returned from SAF");
       return [];
     }
 
-    final cacheDir = await getTemporaryDirectory();
-
     for (final uri in uris) {
-      try {
-        final lower = uri.toLowerCase();
-        final isImage = lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png");
-        final isVideo = lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".3gp");
-        if (!isImage && !isVideo) continue;
+      final lower = uri.toLowerCase();
 
-        // Wrap URI into SafFile
-        // Read bytes from file path
-final bytes = await File(uri).readAsBytes();
+      final isImage =
+          lower.endsWith(".jpg") ||
+          lower.endsWith(".jpeg") ||
+          lower.endsWith(".png");
 
-final extension = uri.split(".").last;
-        final cachePath =
-            "${cacheDir.path}/wa_status_${DateTime.now().microsecondsSinceEpoch}.$extension";
+      final isVideo =
+          lower.endsWith(".mp4") ||
+          lower.endsWith(".mov") ||
+          lower.endsWith(".3gp");
 
-        final cacheFile = File(cachePath);
-        await cacheFile.writeAsBytes(bytes);
+      if (!isImage && !isVideo) continue;
 
-        statusFiles.add(StatusFile(
-          name: cacheFile.path.split("/").last,
-          cachePath: cacheFile.path,
+      statusFiles.add(
+        StatusFile(
+          name: uri.split('/').last,
+          cachePath: uri,
           isVideo: isVideo,
-        ));
-      } catch (e) {
-        debugPrint("Single file copy failed: $e");
-      }
+        ),
+      );
     }
 
     debugPrint("Loaded ${statusFiles.length} status files");
   } catch (e) {
     debugPrint("SAF loading error: $e");
   }
+
   return statusFiles;
 }
-
-
-
 
 
   // ======================================================
