@@ -6,11 +6,9 @@ version: 1.0.1+2
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
-
 dependencies:
   flutter:
     sdk: flutter
-
   cupertino_icons: ^1.0.8
   device_info_plus: ^10.1.2
   permission_handler: ^12.0.3
@@ -20,6 +18,7 @@ dependencies:
   video_player: ^2.9.2
   saf: ^1.0.4
   gallery_saver_plus: ^3.2.9
+
 
 dev_dependencies:
   flutter_test:

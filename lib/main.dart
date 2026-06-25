@@ -4,7 +4,6 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:saf/saf.dart';
-import 'package:gallery_saver_plus/gallery_saver.dart';
 import 'package:video_player/video_player.dart';
 import 'package:video_thumbnail_plus/video_thumbnail_plus.dart';
 
@@ -1283,66 +1282,67 @@ if (files.isEmpty) {
   // - Android 11+ save failures
   // ======================================================
 
-  Future<void> saveStatus(
-    StatusFile status,
-  ) async {
-    try {
-      bool success = false;
+  Future<void> saveStatus(StatusFile status) async {
+  try {
+    final pictures = Directory(
+      "/storage/emulated/0/Pictures/WA Status Saver",
+    );
 
-      if (status.isVideo) {
-        success = await GallerySaver.saveVideo(
-              status.cachePath,
-              albumName: AppConstants.saveAlbum,
-            ) ??
-            false;
-      } else {
-        success = await GallerySaver.saveImage(
-              status.cachePath,
-              albumName: AppConstants.saveAlbum,
-            ) ??
-            false;
-      }
-
-      if (!mounted) {
-        return;
-      }
-
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: AppConstants.primaryColor,
-            content: Text(
-              "Status downloaded successfully",
-            ),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: Colors.red,
-            content: Text(
-              "Failed to save status",
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint(
-        "Save status error: $e",
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.red,
-            content: Text(
-              "Save failed: $e",
-            ),
-          ),
-        );
-      }
+    if (!await pictures.exists()) {
+      await pictures.create(recursive: true);
     }
+
+    final fileName = status.name;
+
+    final destination =
+        "${pictures.path}/$fileName";
+
+    // Avoid duplicate names
+    String finalPath = destination;
+
+    if (File(finalPath).existsSync()) {
+      final timestamp =
+          DateTime.now().millisecondsSinceEpoch;
+
+      final ext =
+          fileName.substring(fileName.lastIndexOf('.'));
+
+      final base =
+          fileName.substring(0, fileName.lastIndexOf('.'));
+
+      finalPath =
+          "${pictures.path}/${base}_$timestamp$ext";
+    }
+
+    await File(status.cachePath).copy(finalPath);
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Colors.green,
+        content: Text(
+          "Saved successfully\n$finalPath",
+        ),
+      ),
+    );
+
+    setState(() {});
+  } catch (e) {
+    debugPrint("Save error: $e");
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Colors.red,
+        content: Text(
+          "Save failed: $e",
+        ),
+      ),
+    );
   }
+}
 
   // ======================================================
   // Load saved files from WA Status Saver album
