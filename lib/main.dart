@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:saf/saf.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_storage/shared_storage.dart' as ss;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 import 'package:video_thumbnail_plus/video_thumbnail_plus.dart';
 
@@ -42,9 +44,7 @@ class StatusFile {
 
 class AppConstants {
   static const String appName = "WA Status Fast Saver";
-
   static const Color primaryColor = Color(0xFF075E54);
-
   static const Color backgroundColor = Color(0xFFF5F5F5);
 
   static const String whatsappFolder =
@@ -55,7 +55,6 @@ class AppConstants {
 
   static const String saveAlbum = "WA Status Saver";
 }
-
 
 // ======================================================
 // ROOT APPLICATION
@@ -124,52 +123,26 @@ class _HomeControllerState extends State<HomeController> {
   // Check existing SAF permissions
   // ======================================================
 
-  Future<void> checkPermissions() async {
-    if (mounted) {
-      setState(() {
-        isLoading = true;
-      });
-    }
+ Future<void> checkPermissions() async {
+  if (mounted) setState(() => isLoading = true);
 
-    try {
-      final whatsappSaf = Saf(AppConstants.whatsappFolder);
+  final prefs = await SharedPreferences.getInstance();
+  final waUri = prefs.getString('wa_tree_uri');
+  final wbUri = prefs.getString('wb_tree_uri');
 
-      final businessSaf = Saf(AppConstants.businessFolder);
+  final persisted = await ss.persistedUriPermissions() ?? [];
 
-      whatsappGranted = await whatsappSaf.getDirectoryPermission(
-            isDynamic: true,
-          ) ??
-          false;
+  whatsappGranted = waUri != null &&
+      persisted.any((p) => p.uri.toString() == waUri);
+  businessGranted = wbUri != null &&
+      persisted.any((p) => p.uri.toString() == wbUri);
 
-      businessGranted = await businessSaf.getDirectoryPermission(
-            isDynamic: true,
-          ) ??
-          false;
+  if (mounted) setState(() => isLoading = false);
+}
 
-      debugPrint(
-        "WhatsApp access: $whatsappGranted",
-      );
 
-      debugPrint(
-        "Business access: $businessGranted",
-      );
-    } catch (e) {
-      debugPrint(
-        "Permission check failed: $e",
-      );
 
-      whatsappGranted = false;
-
-      businessGranted = false;
-    }
-
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-      });
-    }
-  }
-
+     
   @override
   Widget build(BuildContext context) {
     // Loading while checking permissions
@@ -222,75 +195,29 @@ class AccessAuthorizationScreen extends StatelessWidget {
   // Request SAF folder permission
   // ======================================================
 
-  Future<void> requestFolderAccess(
-    BuildContext context,
-    String folder,
-    String name,
-  ) async {
+Future<void> requestFolderAccess(
+  BuildContext context, String prefKey, String name) async {
   try {
-  final saf = Saf(folder);
-
-  // Ask permission only once and keep it permanently
-  final granted = await saf.getDirectoryPermission(
-        isDynamic: false,
-      ) ??
-      false;
-
-  debugPrint("SAF permission result for $folder = $granted");
-
-  if (!granted) {
-    debugPrint("User denied SAF permission");
-    return;
-  }
-
-  if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("WhatsApp folder access granted"),
-      ),
+    final uri = await ss.openDocumentTree(
+      grantWritePermission: false,
+      persistablePermission: true,
     );
-  }  
+    if (uri == null) return;
 
-      if (granted) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: AppConstants.primaryColor,
-              content: Text(
-                "$name access granted successfully",
-              ),
-            ),
-          );
-        }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(prefKey, uri.toString());
 
-        onPermissionGranted();
-      } else {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                "Folder access denied",
-              ),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint(
-        "SAF request failed: $e",
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("$name access granted")),
       );
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Unable to request folder permission",
-            ),
-          ),
-        );
-      }
     }
+    onPermissionGranted();
+  } catch (e) {
+    debugPrint("openDocumentTree failed: $e");
   }
+}
+
 
   // ======================================================
   // WhatsApp / Business Access Card
@@ -464,7 +391,7 @@ class AccessAuthorizationScreen extends StatelessWidget {
                 context,
                 title: "WhatsApp",
                 icon: Icons.chat,
-                folder: AppConstants.whatsappFolder,
+                folder: "wa_tree_uri",
               ),
 
               // Business Access Card
@@ -472,7 +399,7 @@ class AccessAuthorizationScreen extends StatelessWidget {
                 context,
                 title: "WhatsApp Business",
                 icon: Icons.business,
-                folder: AppConstants.businessFolder,
+                folder: "wb_tree_uri",
               ),
 
               const SizedBox(
@@ -557,8 +484,10 @@ class _StatusHomePageState extends State<StatusHomePage>
   // Current source
   // false = WhatsApp
   // true = Business
-
-  bool isBusinessSelected = false;
+   static const mediaScanner =
+   MethodChannel('media_scanner'); 
+  
+   bool isBusinessSelected = false;
 
   // WhatsApp statuses
 
@@ -615,6 +544,31 @@ class _StatusHomePageState extends State<StatusHomePage>
 
     super.dispose();
   }
+
+// ======================================================
+// Refresh all statuses
+// ======================================================
+
+Future<void> refreshStatuses() async {
+  setState(() {
+    isLoading = true;
+    whatsappImages.clear();
+    whatsappVideos.clear();
+    businessImages.clear();
+    businessVideos.clear();
+    videoThumbnails.clear();
+  });
+
+  // NOTE: do NOT call clearTemporaryStatusCache() here —
+  // saf.cache() writes into that same directory.
+
+  await loadStatuses();
+}
+
+
+
+
+
 
   // ======================================================
   // AdMob Banner Initialization
@@ -683,88 +637,52 @@ class _StatusHomePageState extends State<StatusHomePage>
     }
   }
 
-  // ======================================================
-  // Refresh all statuses
-  // ======================================================
-
-  Future<void> refreshStatuses() async {
-    setState(() {
-      isLoading = true;
-
-      whatsappImages.clear();
-
-      whatsappVideos.clear();
-
-      businessImages.clear();
-
-      businessVideos.clear();
-
-      videoThumbnails.clear();
-    });
-
-    await clearTemporaryStatusCache();
-
-    await loadStatuses();
-  }
 
   // ======================================================
   // Load WhatsApp and Business statuses
   // ======================================================
 
   Future<void> loadStatuses() async {
-    try {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "WA Access=${widget.whatsappAccess}, Business=${widget.businessAccess}",
-            ),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
+  try {
+    final prefs = await SharedPreferences.getInstance();
 
-      if (widget.whatsappAccess) {
-        final waFiles = await loadFromSafFolder(
-          AppConstants.whatsappFolder,
-        );
-
-        for (final file in waFiles) {
-          if (file.isVideo) {
-            whatsappVideos.add(file);
-          } else {
-            whatsappImages.add(file);
-          }
+    // WhatsApp tree
+    final waUri = prefs.getString('wa_tree_uri');
+    debugPrint("WA URI = $waUri");
+    if (waUri != null) {
+      final files = await loadFromTree(Uri.parse(waUri));
+      for (final f in files) {
+        if (f.isVideo) {
+          whatsappVideos.add(f);
+        } else {
+          whatsappImages.add(f);
         }
       }
+    }
 
-      if (widget.businessAccess) {
-        final wbFiles = await loadFromSafFolder(
-          AppConstants.businessFolder,
-        );
-
-        for (final file in wbFiles) {
-          if (file.isVideo) {
-            businessVideos.add(file);
-          } else {
-            businessImages.add(file);
-          }
+    // Business tree
+    final wbUri = prefs.getString('wb_tree_uri');
+    debugPrint("WB URI = $wbUri");
+    if (wbUri != null) {
+      final files = await loadFromTree(Uri.parse(wbUri));
+      for (final f in files) {
+        if (f.isVideo) {
+          businessVideos.add(f);
+        } else {
+          businessImages.add(f);
         }
       }
-
-      await generateVideoThumbnails();
-    } catch (e) {
-      debugPrint(
-        "Status loading failed: $e",
-      );
     }
 
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-      });
-    }
+    await generateVideoThumbnails();
+  } catch (e) {
+    debugPrint("loadStatuses error: $e");
   }
+
+  if (mounted) setState(() => isLoading = false);
+}
+
+
 
   // ======================================================
   // Clear temporary cached statuses
@@ -804,71 +722,76 @@ class _StatusHomePageState extends State<StatusHomePage>
   // Return StatusFile objects
   // ======================================================
 
-Future<List<StatusFile>> loadFromSafFolder(String folder) async {
-  final List<StatusFile> statusFiles = [];
+// ======================================================
+// Load files from a granted SAF tree URI using shared_storage
+// ======================================================
+
+Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
+  debugPrint("Reading tree: $treeUri");
+
+  final List<StatusFile> result = [];
 
   try {
-    final saf = Saf(folder);
+    final tempDir = await getTemporaryDirectory();
 
-    // 🔑 STEP 1: Make sure permission is still valid
-    final granted =
-        await saf.getDirectoryPermission(isDynamic: false) ?? false;
-    debugPrint("SAF granted for $folder = $granted");
-    if (!granted) return [];
+    final stream = ss.listFiles(treeUri, columns: [
+      ss.DocumentFileColumn.id,
+      ss.DocumentFileColumn.displayName,
+      ss.DocumentFileColumn.mimeType,
+    ]);
 
-    // 🔑 STEP 2: Sync SAF directory into app cache
-    // Without this, getCachedFilesPath() / getFilesPath() returns empty.
-    final cached = await saf.cache();
-    debugPrint("SAF cache() result for $folder = $cached");
+    int seen = 0;
 
-    // 🔑 STEP 3: Now read the cached file paths (real File-system paths)
-    final files = await saf.getCachedFilesPath() ?? [];
-    debugPrint("Cached files count: ${files.length}");
-
-    for (final path in files) {
-      final lower = path.toLowerCase();
-
+    await for (final doc in stream) {
+      seen++;
+      final name = doc.name ?? '';
+      final mime = doc.type ?? '';
+      final uri  = doc.uri;
+      final lower = name.toLowerCase();
+      debugPrint("FOUND FILE: $name MIME=$mime");
       final isImage = lower.endsWith('.jpg') ||
-          lower.endsWith('.jpeg') ||
-          lower.endsWith('.png');
-
+                      lower.endsWith('.jpeg') ||
+                      lower.endsWith('.png') ||
+                      mime.startsWith('image/');
       final isVideo = lower.endsWith('.mp4') ||
-          lower.endsWith('.mov') ||
-          lower.endsWith('.3gp');
-
+                      lower.endsWith('.mov') ||
+                      lower.endsWith('.3gp') ||
+                      mime.startsWith('video/');
       if (!isImage && !isVideo) continue;
-      if (!File(path).existsSync()) continue;
 
-      statusFiles.add(
-        StatusFile(
-          name: path.split('/').last,
-          cachePath: path,
-          isVideo: isVideo,
+      final bytes = await ss.getDocumentContent(uri);
+      
+      if (bytes == null) continue;
+
+      final outFile = File(
+        '${tempDir.path}/wa_${DateTime.now().microsecondsSinceEpoch}_$name',
+      );
+      await outFile.writeAsBytes(bytes);
+
+      result.add(StatusFile(
+        name: name,
+        cachePath: outFile.path,
+        isVideo: isVideo,
+      ));
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 6),
+          content: Text("Tree files seen=$seen, loaded=${result.length}"),
         ),
       );
     }
-
-    debugPrint("Loaded ${statusFiles.length} status files from $folder");
   } catch (e) {
-    debugPrint("SAF loading error: $e");
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("SAF ERROR: $e"), duration: const Duration(seconds: 8)),
+      );
+    }
   }
-
-  return statusFiles;
+  return result;
 }
-
-Future<File?> copySafFileToCache(String safPath) async {
-  try {
-    final bytes = await File(safPath).readAsBytes();
-    final tempDir = await getTemporaryDirectory();
-    final fileName = safPath.split('/').last;
-    final cachedFile = File('${tempDir.path}/wa_status_${DateTime.now().millisecondsSinceEpoch}_$fileName');
-    return await cachedFile.writeAsBytes(bytes);
-  } catch (e) {
-    debugPrint("Cache copy error: $e");
-    return null;
-  }
-}
-
 
   // ======================================================
   // Generate video thumbnails
@@ -1320,10 +1243,35 @@ Future<File?> copySafFileToCache(String safPath) async {
           "${pictures.path}/${base}_$timestamp$ext";
     }
 
-    await File(status.cachePath).copy(finalPath);
+    
+   
+debugPrint("CACHE EXISTS=${File(status.cachePath).existsSync()}");
+debugPrint("CACHE=${status.cachePath}");
+debugPrint("DEST=$finalPath");
 
-    if (!mounted) return;
+await File(status.cachePath).copy(finalPath);
 
+debugPrint("COPY SUCCESS");
+try {
+  await mediaScanner.invokeMethod(
+    'scanFile',
+    {'path': finalPath},
+  );
+} catch (e) {
+  debugPrint("Media scan error: $e");
+}
+if (!mounted) return;
+
+ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+    content: Text(
+      "Saved file exists: ${File(finalPath).existsSync()}",
+    ),
+  ),
+);
+
+
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: Colors.green,
