@@ -48,13 +48,14 @@ class AppConstants {
   static const Color backgroundColor = Color(0xFFF5F5F5);
 
   static const String whatsappFolder =
-      "/storage/emulated/0/Android/media/com.whatsapp/WhatsApp/Media/.Statuses";
+      "Android/media/com.whatsapp/WhatsApp/Media/.Statuses";
 
   static const String businessFolder =
-      "/storage/emulated/0/Android/media/com.whatsapp.w4b/WhatsApp Business/Media/.Statuses";
+      "Android/media/com.whatsapp.w4b/WhatsApp Business/Media/.Statuses";
 
   static const String saveAlbum = "WA Status Saver";
 }
+
 
 // ======================================================
 // ROOT APPLICATION
@@ -809,58 +810,63 @@ Future<List<StatusFile>> loadFromSafFolder(String folder) async {
   try {
     final saf = Saf(folder);
 
-    final files = await saf.getFilesPath() ?? [];
+    // 🔑 STEP 1: Make sure permission is still valid
+    final granted =
+        await saf.getDirectoryPermission(isDynamic: false) ?? false;
+    debugPrint("SAF granted for $folder = $granted");
+    if (!granted) return [];
 
-   debugPrint("========== SAF DEBUG ==========");
-debugPrint("Folder: $folder");
-debugPrint("Files returned: ${files.length}");
+    // 🔑 STEP 2: Sync SAF directory into app cache
+    // Without this, getCachedFilesPath() / getFilesPath() returns empty.
+    final cached = await saf.cache();
+    debugPrint("SAF cache() result for $folder = $cached");
 
-for (final file in files.take(10)) {
-  debugPrint("SAF FILE -> $file");
-}
-
-if (files.isEmpty) {
-  debugPrint("No files returned from SAF");
-  return [];
-}
+    // 🔑 STEP 3: Now read the cached file paths (real File-system paths)
+    final files = await saf.getCachedFilesPath() ?? [];
+    debugPrint("Cached files count: ${files.length}");
 
     for (final path in files) {
-  debugPrint("SAF FILE -> $path");
+      final lower = path.toLowerCase();
 
-  final lower = path.toLowerCase();
+      final isImage = lower.endsWith('.jpg') ||
+          lower.endsWith('.jpeg') ||
+          lower.endsWith('.png');
 
-  final isImage = lower.endsWith('.jpg') ||
-      lower.endsWith('.jpeg') ||
-      lower.endsWith('.png');
+      final isVideo = lower.endsWith('.mp4') ||
+          lower.endsWith('.mov') ||
+          lower.endsWith('.3gp');
 
-  final isVideo = lower.endsWith('.mp4') ||
-      lower.endsWith('.mov') ||
-      lower.endsWith('.3gp');
+      if (!isImage && !isVideo) continue;
+      if (!File(path).existsSync()) continue;
 
-  if (!isImage && !isVideo) {
-    continue;
-  }
+      statusFiles.add(
+        StatusFile(
+          name: path.split('/').last,
+          cachePath: path,
+          isVideo: isVideo,
+        ),
+      );
+    }
 
-  if (!File(path).existsSync()) {
-    debugPrint("File not found -> $path");
-    continue;
-  }
-
-  statusFiles.add(
-    StatusFile(
-      name: path.split('/').last,
-      cachePath: path,
-      isVideo: isVideo,
-    ),
-  );
-}
-
-    debugPrint("Loaded ${statusFiles.length} status files");
+    debugPrint("Loaded ${statusFiles.length} status files from $folder");
   } catch (e) {
     debugPrint("SAF loading error: $e");
   }
 
   return statusFiles;
+}
+
+Future<File?> copySafFileToCache(String safPath) async {
+  try {
+    final bytes = await File(safPath).readAsBytes();
+    final tempDir = await getTemporaryDirectory();
+    final fileName = safPath.split('/').last;
+    final cachedFile = File('${tempDir.path}/wa_status_${DateTime.now().millisecondsSinceEpoch}_$fileName');
+    return await cachedFile.writeAsBytes(bytes);
+  } catch (e) {
+    debugPrint("Cache copy error: $e");
+    return null;
+  }
 }
 
 
