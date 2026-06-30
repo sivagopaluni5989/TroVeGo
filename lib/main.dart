@@ -111,6 +111,11 @@ class _HomeControllerState extends State<HomeController> {
   bool whatsappGranted = false;
 
   bool businessGranted = false;
+  
+  bool waInstalled = false;
+
+  bool wbInstalled = false;
+
 
   @override
   void initState() {
@@ -118,30 +123,58 @@ class _HomeControllerState extends State<HomeController> {
 
     checkPermissions();
   }
+ 
+
+  // ======================================================
+ // Check installed apps
+// ======================================================
+
+Future<void> checkInstalledApps() async {
+  try {
+    const platform = MethodChannel(
+      'wa_status_channel',
+    );
+
+    waInstalled = await platform.invokeMethod(
+      'isWhatsAppInstalled',
+    );
+
+    wbInstalled = await platform.invokeMethod(
+      'isWhatsAppBusinessInstalled',
+    );
+  } catch (_) {
+    waInstalled = true;
+    wbInstalled = true;
+  }
+}
+
+
 
   // ======================================================
   // Check existing SAF permissions
   // ======================================================
 
  Future<void> checkPermissions() async {
-  if (mounted) setState(() => isLoading = true);
+  if (mounted) {
+    setState(() {
+      isLoading = true;
+    });
+  }
 
   final prefs = await SharedPreferences.getInstance();
-  final waUri = prefs.getString('wa_tree_uri');
-  final wbUri = prefs.getString('wb_tree_uri');
 
-  final persisted = await ss.persistedUriPermissions() ?? [];
+  whatsappGranted =
+      prefs.getString('wa_tree_uri') != null;
 
-  whatsappGranted = waUri != null &&
-      persisted.any((p) => p.uri.toString() == waUri);
-  businessGranted = wbUri != null &&
-      persisted.any((p) => p.uri.toString() == wbUri);
+  businessGranted =
+      prefs.getString('wb_tree_uri') != null;
 
-  if (mounted) setState(() => isLoading = false);
+  if (mounted) {
+    setState(() {
+      isLoading = false;
+    });
+  }
 }
-
-
-
      
   @override
   Widget build(BuildContext context) {
@@ -160,12 +193,16 @@ class _HomeControllerState extends State<HomeController> {
     // If any WhatsApp access exists
     // open main status page
 
-    if (whatsappGranted || businessGranted) {
-      return StatusHomePage(
-        whatsappAccess: whatsappGranted,
-        businessAccess: businessGranted,
-      );
-    }
+    const bool waInstalled = true;
+    const bool wbInstalled = true;
+
+if ((whatsappGranted || !waInstalled) &&
+    (businessGranted || !wbInstalled)) {
+  return StatusHomePage(
+    whatsappAccess: whatsappGranted,
+    businessAccess: businessGranted,
+  );
+}
 
     // Otherwise show authorization screen
 
@@ -196,30 +233,83 @@ class AccessAuthorizationScreen extends StatelessWidget {
   // ======================================================
 
 Future<void> requestFolderAccess(
-  BuildContext context, String prefKey, String name) async {
+  BuildContext context,
+  String prefKey,
+  String name,
+) async {
   try {
     final uri = await ss.openDocumentTree(
       grantWritePermission: false,
       persistablePermission: true,
     );
+
     if (uri == null) return;
 
+    debugPrint("Selected URI for $prefKey = $uri");
+
+    // Prevent selecting WhatsApp Business folder
+    // when normal WhatsApp button is used
+    if (prefKey == 'wa_tree_uri' &&
+        uri.toString().contains('com.whatsapp.w4b')) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Please select the normal WhatsApp folder.",
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Prevent selecting normal WhatsApp folder
+    // when Business button is used
+    if (prefKey == 'wb_tree_uri' &&
+        !uri.toString().contains('com.whatsapp.w4b')) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Please select the WhatsApp Business folder.",
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(prefKey, uri.toString());
+
+    await prefs.setString(
+      prefKey,
+      uri.toString(),
+    );
+
+    debugPrint(
+      "Saved $prefKey = ${uri.toString()}",
+    );
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("$name access granted")),
+        SnackBar(
+          content: Text(
+            "$name access granted",
+          ),
+        ),
       );
     }
+
     onPermissionGranted();
   } catch (e) {
-    debugPrint("openDocumentTree failed: $e");
+    debugPrint(
+      "openDocumentTree failed: $e",
+    );
   }
 }
 
 
-  // ======================================================
+// ======================================================
   // WhatsApp / Business Access Card
   // ======================================================
 
@@ -1455,45 +1545,59 @@ ScaffoldMessenger.of(context).showSnackBar(
                       // Image preview
 
                       if (!isVideo)
-                        Image.file(
-                          file,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stack) {
-                            return Container(
-                              color: Colors.grey.shade300,
-                              child: const Icon(
-                                Icons.broken_image,
-                                size: 50,
-                              ),
-                            );
-                          },
-                        )
+  Image.file(
+    file,
+    fit: BoxFit.cover,
+    errorBuilder: (context, error, stack) {
+      return Container(
+        color: Colors.grey.shade300,
+        child: const Icon(
+          Icons.broken_image,
+          size: 50,
+        ),
+      );
+    },
+  )
 
-                      // Video preview
+else
+  FutureBuilder<String?>(
+    future: VideoThumbnailPlus.thumbnailFile(
+      video: file.path,
+      imageFormat: ImageFormat.JPEG,
+      quality: 80,
+      maxWidth: 500,
+    ),
+    builder: (context, snapshot) {
+      if (snapshot.hasData &&
+          snapshot.data != null &&
+          File(snapshot.data!).existsSync()) {
+        return Image.file(
+          File(snapshot.data!),
+          fit: BoxFit.cover,
+        );
+      }
 
-                      else
-                        Container(
-                          color: Colors.black12,
-                          child: const Center(
-                            child: Icon(
-                              Icons.play_circle_fill,
-                              color: Colors.black54,
-                              size: 60,
-                            ),
-                          ),
-                        ),
+      return Container(
+        color: Colors.black12,
+        child: const Center(
+          child: CircularProgressIndicator(
+            color: AppConstants.primaryColor,
+          ),
+        ),
+      );
+    },
+  ),
 
-                      // Video play overlay
+if (isVideo)
+  const Center(
+    child: Icon(
+      Icons.play_arrow,
+      color: Colors.white,
+      size: 50,
+    ),
+  ),
 
-                      if (isVideo)
-                        const Center(
-                          child: Icon(
-                            Icons.play_arrow,
-                            color: Colors.white,
-                            size: 50,
-                          ),
-                        ),
-                    ],
+    ],
                   ),
                 ),
               ),
