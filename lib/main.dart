@@ -245,7 +245,7 @@ Future<void> requestFolderAccess(
 
     if (uri == null) return;
 
-    debugPrint("Selected URI for $prefKey = $uri");
+    
 
     // Prevent selecting WhatsApp Business folder
     // when normal WhatsApp button is used
@@ -738,7 +738,7 @@ Future<void> refreshStatuses() async {
 
     // WhatsApp tree
     final waUri = prefs.getString('wa_tree_uri');
-    debugPrint("WA URI = $waUri");
+    
     if (waUri != null) {
       final files = await loadFromTree(Uri.parse(waUri));
       for (final f in files) {
@@ -752,7 +752,7 @@ Future<void> refreshStatuses() async {
 
     // Business tree
     final wbUri = prefs.getString('wb_tree_uri');
-    debugPrint("WB URI = $wbUri");
+    
     if (wbUri != null) {
       final files = await loadFromTree(Uri.parse(wbUri));
       for (final f in files) {
@@ -817,7 +817,7 @@ Future<void> refreshStatuses() async {
 // ======================================================
 
 Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
-  debugPrint("Reading tree: $treeUri");
+  
 
   final List<StatusFile> result = [];
 
@@ -838,7 +838,7 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
       final mime = doc.type ?? '';
       final uri  = doc.uri;
       final lower = name.toLowerCase();
-      debugPrint("FOUND FILE: $name MIME=$mime");
+      
       final isImage = lower.endsWith('.jpg') ||
                       lower.endsWith('.jpeg') ||
                       lower.endsWith('.png') ||
@@ -1335,13 +1335,11 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
 
     
    
-debugPrint("CACHE EXISTS=${File(status.cachePath).existsSync()}");
-debugPrint("CACHE=${status.cachePath}");
-debugPrint("DEST=$finalPath");
+
+
 
 await File(status.cachePath).copy(finalPath);
 
-debugPrint("COPY SUCCESS");
 try {
   await mediaScanner.invokeMethod(
     'scanFile',
