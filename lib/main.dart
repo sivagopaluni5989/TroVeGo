@@ -43,7 +43,7 @@ class StatusFile {
 // ======================================================
 
 class AppConstants {
-  static const String appName = "WA Status Fast Saver";
+  static const String appName = "𝓦𝓐 𝓢𝓽𝓪𝓽𝓾𝓼 𝓕𝓪𝓼𝓽 𝓢𝓪𝓿𝓮𝓻 𝓟𝓻𝓸";
   static const Color primaryColor = Color(0xFF075E54);
   static const Color backgroundColor = Color(0xFFF5F5F5);
 
@@ -359,12 +359,13 @@ Future<void> requestFolderAccess(
             color: AppConstants.primaryColor,
           ),
           const SizedBox(
-            height: 15,
+         
+   height: 15,
           ),
           Text(
             title,
             style: const TextStyle(
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -429,8 +430,9 @@ Future<void> requestFolderAccess(
       backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
         title: const Text(
-          "WA Status Fast Saver",
+          "WA Status Fast Saver Pro",
           style: TextStyle(
+            fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -496,7 +498,7 @@ Future<void> requestFolderAccess(
               if (waInstalled)
   buildAccessCard(
     context,
-    title: "WhatsApp",
+    title: "𝙒𝙝𝙖𝙩𝙨𝘼𝙥𝙥",
     icon: Icons.chat,
     folder: "wa_tree_uri",
   ),
@@ -504,7 +506,7 @@ Future<void> requestFolderAccess(
 if (wbInstalled)
   buildAccessCard(
     context,
-    title: "WhatsApp Business",
+    title: "𝑩𝒖𝒔𝒊𝒏𝒆𝒔𝒔",
     icon: Icons.business,
     folder: "wb_tree_uri",
   ),
@@ -967,9 +969,10 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
       backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
         title: const Text(
-          "WA Status Fast Saver",
+          "WA Status Fast Saver Pro",
           style: TextStyle(
             fontWeight: FontWeight.bold,
+            fontSize: 18,
           ),
         ),
         actions: [
@@ -1081,19 +1084,19 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
                 icon: Icon(
                   Icons.image,
                 ),
-                text: "Images",
+                text: "𝑰𝒎𝒂𝒈𝒆𝒔",
               ),
               Tab(
                 icon: Icon(
                   Icons.videocam,
                 ),
-                text: "Videos",
+                text: "𝑽𝒊𝒅𝒆𝒐𝒔",
               ),
               Tab(
                 icon: Icon(
                   Icons.download_done,
                 ),
-                text: "Saved",
+                text: "𝑺𝒂𝒗𝒆𝒅",
               ),
             ],
           ),
