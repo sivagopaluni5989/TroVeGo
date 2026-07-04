@@ -104,81 +104,92 @@ class HomeController extends StatefulWidget {
   @override
   State<HomeController> createState() => _HomeControllerState();
 }
-
 class _HomeControllerState extends State<HomeController> {
   bool isLoading = true;
 
   bool whatsappGranted = false;
-
   bool businessGranted = false;
-  
+
   bool waInstalled = false;
-
   bool wbInstalled = false;
-
 
   @override
   void initState() {
     super.initState();
-
-    checkPermissions();
+    initialize();
   }
- 
+
+  Future<void> initialize() async {
+    await checkInstalledApps();
+    await checkPermissions();
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   // ======================================================
- // Check installed apps
-// ======================================================
+  // Check installed apps
+  // ======================================================
+  Future<void> checkInstalledApps() async {
+    try {
+      const platform = MethodChannel('wa_status_channel');
 
-Future<void> checkInstalledApps() async {
-  try {
-    const platform = MethodChannel(
-      'wa_status_channel',
-    );
+      waInstalled =
+          await platform.invokeMethod('isWhatsAppInstalled');
 
-    waInstalled = await platform.invokeMethod(
-      'isWhatsAppInstalled',
-    );
+      wbInstalled =
+          await platform.invokeMethod(
+              'isWhatsAppBusinessInstalled');
 
-    wbInstalled = await platform.invokeMethod(
-      'isWhatsAppBusinessInstalled',
-    );
-  } catch (_) {
-    waInstalled = true;
-    wbInstalled = true;
+      debugPrint('WA Installed = $waInstalled');
+      debugPrint('WB Installed = $wbInstalled');
+    } catch (e) {
+      debugPrint('Install check error: $e');
+      waInstalled = false;
+      wbInstalled = false;
+    }
   }
-}
-
-
 
   // ======================================================
   // Check existing SAF permissions
   // ======================================================
+  Future<void> checkPermissions() async {
+    if (mounted) {
+      setState(() {
+        isLoading = true;
+      });
+    }
 
- Future<void> checkPermissions() async {
-  if (mounted) {
-    setState(() {
-      isLoading = true;
-    });
+    final prefs = await SharedPreferences.getInstance();
+
+    whatsappGranted =
+        prefs.getString('wa_tree_uri') != null;
+
+    businessGranted =
+        prefs.getString('wb_tree_uri') != null;
+
+    debugPrint('waInstalled=$waInstalled');
+    debugPrint('wbInstalled=$wbInstalled');
+    debugPrint('whatsappGranted=$whatsappGranted');
+    debugPrint('businessGranted=$businessGranted');
+
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
-  final prefs = await SharedPreferences.getInstance();
-
-  whatsappGranted =
-      prefs.getString('wa_tree_uri') != null;
-
-  businessGranted =
-      prefs.getString('wb_tree_uri') != null;
-
-  if (mounted) {
-    setState(() {
-      isLoading = false;
-    });
-  }
-}
-     
   @override
   Widget build(BuildContext context) {
-    // Loading while checking permissions
+    debugPrint(
+      'BUILD -> '
+      'waInstalled=$waInstalled '
+      'wbInstalled=$wbInstalled '
+      'waGranted=$whatsappGranted '
+      'wbGranted=$businessGranted',
+    );
 
     if (isLoading) {
       return const Scaffold(
@@ -190,29 +201,29 @@ Future<void> checkInstalledApps() async {
       );
     }
 
-    // If any WhatsApp access exists
-    // open main status page
+    // Open home only when every installed app
+    // has been granted permission.
+    if ((whatsappGranted || !waInstalled) &&
+        (businessGranted || !wbInstalled)) {
+      return StatusHomePage(
+        whatsappAccess: whatsappGranted,
+        businessAccess: businessGranted,
+      );
+    }
 
-    const bool waInstalled = true;
-    const bool wbInstalled = true;
-
-if ((whatsappGranted || !waInstalled) &&
-    (businessGranted || !wbInstalled)) {
-  return StatusHomePage(
-    whatsappAccess: whatsappGranted,
-    businessAccess: businessGranted,
-  );
-}
-
-    // Otherwise show authorization screen
-
+    // Otherwise ask for permissions
     return AccessAuthorizationScreen(
+      waInstalled: waInstalled,
+      wbInstalled: wbInstalled,
       onPermissionGranted: () {
         checkPermissions();
       },
     );
   }
 }
+ 
+
+
 // ======================================================
 // ACCESS AUTHORIZATION SCREEN
 //
@@ -221,12 +232,17 @@ if ((whatsappGranted || !waInstalled) &&
 // ======================================================
 
 class AccessAuthorizationScreen extends StatelessWidget {
+  final bool waInstalled;
+  final bool wbInstalled;
   final VoidCallback onPermissionGranted;
 
   const AccessAuthorizationScreen({
     super.key,
+    required this.waInstalled,
+    required this.wbInstalled,
     required this.onPermissionGranted,
   });
+
 
   // ======================================================
   // Request SAF folder permission
@@ -477,20 +493,34 @@ Future<void> requestFolderAccess(
               ),
 
               // WhatsApp Access Card
-              buildAccessCard(
-                context,
-                title: "WhatsApp",
-                icon: Icons.chat,
-                folder: "wa_tree_uri",
-              ),
+              if (waInstalled)
+  buildAccessCard(
+    context,
+    title: "WhatsApp",
+    icon: Icons.chat,
+    folder: "wa_tree_uri",
+  ),
 
-              // Business Access Card
-              buildAccessCard(
-                context,
-                title: "WhatsApp Business",
-                icon: Icons.business,
-                folder: "wb_tree_uri",
-              ),
+if (wbInstalled)
+  buildAccessCard(
+    context,
+    title: "WhatsApp Business",
+    icon: Icons.business,
+    folder: "wb_tree_uri",
+  ),
+
+if (!waInstalled && !wbInstalled)
+  const Padding(
+    padding: EdgeInsets.only(top: 40),
+    child: Text(
+      'No WhatsApp application installed',
+      style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
+      textAlign: TextAlign.center,
+    ),
+  ),
 
               const SizedBox(
                 height: 20,
