@@ -2,7 +2,7 @@ name: store_gui_app
 description: "Status Saver App"
 publish_to: "none"
 
-version: 1.0.1+2
+version: 1.0.3+15
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
