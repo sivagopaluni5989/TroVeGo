@@ -860,7 +860,8 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
       ss.DocumentFileColumn.id,
       ss.DocumentFileColumn.displayName,
       ss.DocumentFileColumn.mimeType,
-    ]);
+      ss.DocumentFileColumn.lastModified,
+     ]);
 
     int seen = 0;
 
@@ -870,7 +871,9 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
       final mime = doc.type ?? '';
       final uri  = doc.uri;
       final lower = name.toLowerCase();
-      
+      debugPrint(
+        "Name=$name  Dir=${doc.isDirectory}  File=${doc.isFile}  Mime=$mime",
+      );  
       final isImage = lower.endsWith('.jpg') ||
                       lower.endsWith('.jpeg') ||
                       lower.endsWith('.png') ||
