@@ -614,9 +614,10 @@ class _StatusHomePageState extends State<StatusHomePage>
   
    // ================= AdMob =================
 
+BannerAd? _bannerAd;
+bool _isBannerReady = false;
 
 InterstitialAd? _interstitialAd;
-bool _isInterstitialReady = false;
 
   // WhatsApp statuses
 
@@ -645,11 +646,16 @@ bool _isInterstitialReady = false;
 
   // AdMob
 
-  BannerAd? bannerAd;
+BannerAd? bannerAd;
 
-  bool adLoaded = false;
+bool adLoaded = false;
 
-  
+// Interstitial Ad
+
+InterstitialAd? _interstitialAd;
+
+bool _isInterstitialReady = false;
+
   @override
   void initState() {
     super.initState();
@@ -661,11 +667,11 @@ bool _isInterstitialReady = false;
 
     initializeAds();
 
-loadInterstitialAd();
+    loadInterstitialAd();
 
-requestPermissions();
+    requestPermissions();
 
-loadStatuses();
+    loadStatuses();
   }
 
   @override
@@ -713,15 +719,12 @@ Future<void> refreshStatuses() async {
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-  debugPrint("Banner loaded");
-
-  if (mounted) {
-    setState(() {
-      bannerAd = ad as BannerAd;
-      adLoaded = true;
-    });
-  }
-},
+          if (mounted) {
+            setState(() {
+              adLoaded = true;
+            });
+          }
+        },
         onAdFailedToLoad: (
           ad,
           error,
@@ -737,61 +740,6 @@ Future<void> refreshStatuses() async {
 
     bannerAd!.load();
   }
-
-// ======================================================
-// AdMob Interstitial Initialization
-// ======================================================
-
-void loadInterstitialAd() {
-  InterstitialAd.load(
-    adUnitId: AdHelper.interstitialAdUnitId,
-    request: const AdRequest(),
-    adLoadCallback: InterstitialAdLoadCallback(
-      onAdLoaded: (InterstitialAd ad) {
-        _interstitialAd = ad;
-        _isInterstitialReady = true;
-
-        debugPrint("Interstitial loaded");
-      },
-      onAdFailedToLoad: (LoadAdError error) {
-        debugPrint("Interstitial failed to load: $error");
-
-        _interstitialAd = null;
-        _isInterstitialReady = false;
-      },
-    ),
-  );
-}
-
-void showInterstitialAd() {
-  if (_isInterstitialReady && _interstitialAd != null) {
-
-    _interstitialAd!.fullScreenContentCallback =
-        FullScreenContentCallback(
-      onAdDismissedFullScreenContent: (ad) {
-        ad.dispose();
-
-        _interstitialAd = null;
-        _isInterstitialReady = false;
-
-        loadInterstitialAd();
-      },
-      onAdFailedToShowFullScreenContent: (ad, error) {
-        ad.dispose();
-
-        _interstitialAd = null;
-        _isInterstitialReady = false;
-
-        loadInterstitialAd();
-      },
-    );
-
-    _interstitialAd!.show();
-
-    _interstitialAd = null;
-    _isInterstitialReady = false;
-  }
-}
 
   // ======================================================
   // Current visible images
@@ -1464,17 +1412,15 @@ ScaffoldMessenger.of(context).showSnackBar(
 
     
     ScaffoldMessenger.of(context).showSnackBar(
-  SnackBar(
-    backgroundColor: Colors.green,
-    content: Text(
-      "Saved successfully\n$finalPath",
-    ),
-  ),
-);
+      SnackBar(
+        backgroundColor: Colors.green,
+        content: Text(
+          "Saved successfully\n$finalPath",
+        ),
+      ),
+    );
 
-showInterstitialAd();
-
-setState(() {});
+    setState(() {});
   } catch (e) {
     debugPrint("Save error: $e");
 
