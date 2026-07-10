@@ -44,7 +44,7 @@ class StatusFile {
 // ======================================================
 
 class AppConstants {
-  static const String appName = "𝓦𝓐 𝓢𝓽𝓪𝓽𝓾𝓼 𝓕𝓪𝓼𝓽 𝓢𝓪𝓿𝓮𝓻 𝓟𝓻𝓸";
+  static const String appName = "𝗧𝗿𝗼𝘃𝗲𝗚𝗼";
   static const Color primaryColor = Color(0xFF075E54);
   static const Color backgroundColor = Color(0xFFF5F5F5);
 
@@ -54,7 +54,7 @@ class AppConstants {
   static const String businessFolder =
       "Android/media/com.whatsapp.w4b/WhatsApp Business/Media/.Statuses";
 
-  static const String saveAlbum = "WA Status Saver";
+  static const String saveAlbum = "𝗧𝗿𝗼𝘃𝗲𝗚𝗼";
 }
 
 // ======================================================
@@ -234,6 +234,7 @@ class _HomeControllerState extends State<HomeController> {
 
 class AccessAuthorizationScreen extends StatelessWidget {
   final bool waInstalled;
+
   final bool wbInstalled;
   final VoidCallback onPermissionGranted;
 
@@ -430,14 +431,27 @@ Future<void> requestFolderAccess(
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
-        title: const Text(
-          "WA Status Fast Saver Pro",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+  title: const Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Text(
+        "TroveGo",
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
         ),
       ),
+      Text(
+        "Fast & Secure Status Saver",
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w400,
+        ),
+      ),
+    ],
+  ),
+),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -1039,7 +1053,7 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
       backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
         title: const Text(
-          "WA Status Fast Saver Pro",
+          "TroveGo",
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 18,

@@ -22,7 +22,7 @@
 
     <application
         android:name="${applicationName}"
-        android:label="WA Fast Saver Pro"
+        android:label="TroveGo"
         android:icon="@mipmap/ic_launcher">
 
         <!-- Google Mobile Ads App ID -->
