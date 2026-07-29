@@ -13,7 +13,9 @@ import 'ad_helper.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await MobileAds.instance.initialize();
+  if (Platform.isAndroid || Platform.isIOS) {
+    await MobileAds.instance.initialize();
+  }
 
   runApp(const WAStatusSaverApp());
 }
@@ -44,7 +46,8 @@ class StatusFile {
 // ======================================================
 
 class AppConstants {
-  static const String appName = "𝗧𝗿𝗼𝘃𝗲𝗚𝗼";
+  static const String appName = "🌿 TroVeGa 🌿";
+
   static const Color primaryColor = Color(0xFF075E54);
   static const Color backgroundColor = Color(0xFFF5F5F5);
 
@@ -54,8 +57,9 @@ class AppConstants {
   static const String businessFolder =
       "Android/media/com.whatsapp.w4b/WhatsApp Business/Media/.Statuses";
 
-  static const String saveAlbum = "𝗧𝗿𝗼𝘃𝗲𝗚𝗼";
+  static const String saveAlbum = "TroVeGa";
 }
+
 
 // ======================================================
 // ROOT APPLICATION
@@ -435,15 +439,15 @@ Future<void> requestFolderAccess(
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.center,
     children: [
+     Text(
+  " ▶️🌿 TroVeGa 🌿▶️",
+  style: TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.bold,
+  ),
+),
       Text(
-        "TroveGo",
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      Text(
-        "Fast & Secure Status Saver",
+        "",
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w400,
@@ -631,6 +635,7 @@ class _StatusHomePageState extends State<StatusHomePage>
 
 InterstitialAd? _interstitialAd;
 bool _isInterstitialReady = false;
+int _downloadCount = 0;
 
   // WhatsApp statuses
 
@@ -721,6 +726,11 @@ Future<void> refreshStatuses() async {
   // ======================================================
 
   void initializeAds() {
+
+  if (!Platform.isAndroid) {
+    debugPrint("Ads disabled on non Android platform");
+    return;
+  }
     bannerAd = BannerAd(
       size: AdSize.banner,
       adUnitId: AdHelper.bannerAdUnitId,
@@ -757,32 +767,64 @@ Future<void> refreshStatuses() async {
 // ======================================================
 
 void loadInterstitialAd() {
+
+  if (!Platform.isAndroid) {
+    debugPrint("Interstitial disabled on Linux");
+    return;
+  }
+
+  debugPrint("Loading Interstitial...");
+
   InterstitialAd.load(
     adUnitId: AdHelper.interstitialAdUnitId,
     request: const AdRequest(),
+
     adLoadCallback: InterstitialAdLoadCallback(
-      onAdLoaded: (InterstitialAd ad) {
+
+      onAdLoaded: (ad) {
+        debugPrint("✅ Interstitial loaded");
+        debugPrint("Ad object: $ad");
+
+
         _interstitialAd = ad;
         _isInterstitialReady = true;
-
-        debugPrint("Interstitial loaded");
       },
-      onAdFailedToLoad: (LoadAdError error) {
-        debugPrint("Interstitial failed to load: $error");
+
+      onAdFailedToLoad: (error) {
+        debugPrint("❌ Interstitial failed: $error");
 
         _interstitialAd = null;
         _isInterstitialReady = false;
+
+        Future.delayed(
+          const Duration(seconds: 10),
+          () {
+            loadInterstitialAd();
+          },
+        );
       },
     ),
   );
 }
-
 void showInterstitialAd() {
+  debugPrint("==============================");
+  debugPrint("INTERSTITIAL DEBUG");
+  debugPrint("Ready: $_isInterstitialReady");
+  debugPrint("Ad object: $_interstitialAd");
+  debugPrint("==============================");
+
+  if (!_isInterstitialReady || _interstitialAd == null) {
+    debugPrint("Interstitial NOT READY - Loading again...");
+    loadInterstitialAd();
+    return;
+  }
+
   if (_isInterstitialReady && _interstitialAd != null) {
 
     _interstitialAd!.fullScreenContentCallback =
         FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
+        debugPrint("Ad dismissed");
         ad.dispose();
 
         _interstitialAd = null;
@@ -791,6 +833,7 @@ void showInterstitialAd() {
         loadInterstitialAd();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
+        debugPrint("Failed to show: $error");
         ad.dispose();
 
         _interstitialAd = null;
@@ -800,12 +843,19 @@ void showInterstitialAd() {
       },
     );
 
-    _interstitialAd!.show();
+    debugPrint("Showing interstitial");
+     
+     final ad = _interstitialAd;
 
     _interstitialAd = null;
     _isInterstitialReady = false;
+     ad!.show();
+
+  } else {
+    debugPrint("Interstitial NOT READY");
   }
 }
+
 
   // ======================================================
   // Current visible images
@@ -985,7 +1035,7 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           duration: const Duration(seconds: 6),
-          content: Text("Tree files seen=$seen, loaded=${result.length}"),
+          content: Text("Files Loaded=$seen, Watched=${result.length}"),
         ),
       );
     }
@@ -1052,13 +1102,27 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
-        title: const Text(
-          "TroveGo",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
+       title: const Column(
+  mainAxisSize: MainAxisSize.min,
+  crossAxisAlignment: CrossAxisAlignment.center,
+  children: [
+    Text(
+      "▶️🌿 TroVeGa 🌿▶️",
+      style: TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 18,
+      ),
+    ),
+    SizedBox(height: 2),
+    Text(
+      "🥇 Never Miss a Status ⭐⭐⭐⭐⭐",
+      style: TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w500,
+      ),
+    ),
+  ],
+),
         actions: [
           IconButton(
             onPressed: () {
@@ -1079,9 +1143,11 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
           Container(
             color: AppConstants.primaryColor,
             padding: const EdgeInsets.only(
-              bottom: 12,
-              top: 8,
-            ),
+  left: 12,
+  right: 12,
+  top: 8,
+  bottom: 10,
+),
             child: Row(
               children: [
                 Expanded(
@@ -1093,10 +1159,10 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
                     },
                     child: Container(
                       margin: const EdgeInsets.symmetric(
-                        horizontal: 15,
+                        horizontal: 8,
                       ),
                       padding: const EdgeInsets.symmetric(
-                        vertical: 10,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
                         color: !isBusinessSelected
@@ -1126,7 +1192,7 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
                     },
                     child: Container(
                       margin: const EdgeInsets.symmetric(
-                        horizontal: 15,
+                        horizontal: 8,
                       ),
                       padding: const EdgeInsets.symmetric(
                         vertical: 10,
@@ -1281,12 +1347,19 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: files.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+  padding: EdgeInsets.fromLTRB(
+    12,
+    12,
+    12,
+    adLoaded
+        ? MediaQuery.of(context).padding.bottom + 120
+        : MediaQuery.of(context).padding.bottom + 80,
+  ),
+  itemCount: files.length,
+  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: 3,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
         childAspectRatio: 0.72,
       ),
       itemBuilder: (context, index) {
@@ -1388,7 +1461,7 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
                         );
                       },
                       child: Container(
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(7),
                         decoration: const BoxDecoration(
                           color: AppConstants.primaryColor,
                           shape: BoxShape.circle,
@@ -1396,7 +1469,7 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
                         child: const Icon(
                           Icons.download,
                           color: Colors.white,
-                          size: 24,
+                          size: 20,
                         ),
                       ),
                     ),
@@ -1421,8 +1494,8 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
   Future<void> saveStatus(StatusFile status) async {
   try {
     final pictures = Directory(
-      "/storage/emulated/0/Pictures/WA Status Saver",
-    );
+  "/storage/emulated/0/Pictures/${AppConstants.saveAlbum}",
+);
 
     if (!await pictures.exists()) {
       await pictures.create(recursive: true);
@@ -1468,16 +1541,15 @@ try {
 if (!mounted) return;
 
 ScaffoldMessenger.of(context).showSnackBar(
-  SnackBar(
+  const SnackBar(
     content: Text(
-      "Saved file exists: ${File(finalPath).existsSync()}",
+      "File Saved: Done",
     ),
   ),
 );
 
-
     
-    ScaffoldMessenger.of(context).showSnackBar(
+ ScaffoldMessenger.of(context).showSnackBar(
   SnackBar(
     backgroundColor: Colors.green,
     content: Text(
@@ -1486,7 +1558,17 @@ ScaffoldMessenger.of(context).showSnackBar(
   ),
 );
 
-showInterstitialAd();
+debugPrint("Download count before: $_downloadCount");
+
+_downloadCount++;
+
+debugPrint("Download count after: $_downloadCount");
+
+if (_downloadCount >= 2) {
+  debugPrint("Trying to show interstitial...");
+  _downloadCount = 0;
+  showInterstitialAd();
+}
 
 setState(() {});
   } catch (e) {
@@ -1505,9 +1587,7 @@ setState(() {});
   }
 }
 
-  // ======================================================
-  // Load saved files from WA Status Saver album
-  // ======================================================
+  // Load only files saved by the app //
 
   Future<List<File>> getSavedFiles() async {
     try {
@@ -1553,7 +1633,7 @@ setState(() {});
     }
   }
   // ======================================================
-  // Saved Status Page
+  // Display only app-saved status files
   //
   // Shows downloaded statuses from Gallery folder
   // ======================================================
@@ -1612,12 +1692,17 @@ setState(() {});
         // Saved status grid
 
         return GridView.builder(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.only(
+  left: 12,
+  right: 12,
+  top: 8,
+  bottom: 10,
+),
           itemCount: files.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
+            crossAxisCount: 3,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
             childAspectRatio: 0.72,
           ),
           itemBuilder: (context, index) {
