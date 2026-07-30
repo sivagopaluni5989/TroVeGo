@@ -440,7 +440,7 @@ Future<void> requestFolderAccess(
     crossAxisAlignment: CrossAxisAlignment.center,
     children: [
      Text(
-  " ▶️🌿 TroVeGa 🌿▶️",
+  "▶️🌿 TroVeGa 🌿◀️",
   style: TextStyle(
     fontSize: 18,
     fontWeight: FontWeight.bold,
@@ -670,22 +670,20 @@ int _downloadCount = 0;
 
   
   @override
-  void initState() {
-    super.initState();
+void initState() {
+  super.initState();
 
-    tabController = TabController(
-      length: 3,
-      vsync: this,
-    );
+  tabController = TabController(
+    length: 3,
+    vsync: this,
+  );
 
-    initializeAds();
+  initializeAds();
 
-loadInterstitialAd();
+  requestPermissions();
 
-requestPermissions();
-
-loadStatuses();
-  }
+  loadStatuses();
+}
 
   @override
   void dispose() {
@@ -722,45 +720,82 @@ Future<void> refreshStatuses() async {
 
 
   // ======================================================
-  // AdMob Banner Initialization
-  // ======================================================
+// AdMob Banner Initialization
+// ======================================================
 
-  void initializeAds() {
+Future<void> initializeAds() async {
 
   if (!Platform.isAndroid) {
     debugPrint("Ads disabled on non Android platform");
     return;
   }
-    bannerAd = BannerAd(
-      size: AdSize.banner,
-      adUnitId: AdHelper.bannerAdUnitId,
-      request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (ad) {
-  debugPrint("Banner loaded");
 
-  if (mounted) {
-    setState(() {
-      bannerAd = ad as BannerAd;
-      adLoaded = true;
-    });
-  }
-},
-        onAdFailedToLoad: (
-          ad,
-          error,
-        ) {
-          debugPrint(
-            "Ad loading failed: $error",
-          );
+  debugPrint("Starting AdMob initialization");
 
-          ad.dispose();
-        },
-      ),
-    );
+  await MobileAds.instance.initialize();
 
-    bannerAd!.load();
-  }
+  debugPrint("✅ AdMob initialized");
+
+
+  // Load Interstitial after AdMob initialization
+  loadInterstitialAd();
+
+
+  // Load Banner Ad
+  bannerAd = BannerAd(
+    size: AdSize.banner,
+    adUnitId: AdHelper.bannerAdUnitId,
+    request: const AdRequest(),
+
+    listener: BannerAdListener(
+
+      onAdLoaded: (ad) {
+        debugPrint("✅ Banner loaded");
+
+        if (mounted) {
+          setState(() {
+            bannerAd = ad as BannerAd;
+            adLoaded = true;
+          });
+        }
+      },
+
+
+      onAdFailedToLoad: (ad, error) {
+        debugPrint("❌ Banner failed to load: $error");
+
+        ad.dispose();
+
+        if (mounted) {
+          setState(() {
+            adLoaded = false;
+          });
+        }
+      },
+
+
+      onAdOpened: (ad) {
+        debugPrint("Banner opened");
+      },
+
+
+      onAdClosed: (ad) {
+        debugPrint("Banner closed");
+      },
+
+
+      onAdImpression: (ad) {
+        debugPrint("Banner impression recorded");
+      },
+
+    ),
+  );
+
+
+  bannerAd!.load();
+
+  debugPrint("Banner loading started");
+}
 
 // ======================================================
 // AdMob Interstitial Initialization
@@ -778,83 +813,110 @@ void loadInterstitialAd() {
   InterstitialAd.load(
     adUnitId: AdHelper.interstitialAdUnitId,
     request: const AdRequest(),
-
     adLoadCallback: InterstitialAdLoadCallback(
 
-      onAdLoaded: (ad) {
+      onAdLoaded: (InterstitialAd ad) {
         debugPrint("✅ Interstitial loaded");
         debugPrint("Ad object: $ad");
-
 
         _interstitialAd = ad;
         _isInterstitialReady = true;
       },
 
-      onAdFailedToLoad: (error) {
-        debugPrint("❌ Interstitial failed: $error");
+      onAdFailedToLoad: (LoadAdError error) {
+
+        debugPrint("========== INTERSTITIAL LOAD FAILED ==========");
+        debugPrint("Code: ${error.code}");
+        debugPrint("Message: ${error.message}");
+        debugPrint("Domain: ${error.domain}");
 
         _interstitialAd = null;
         _isInterstitialReady = false;
 
         Future.delayed(
           const Duration(seconds: 10),
-          () {
-            loadInterstitialAd();
-          },
+          () => loadInterstitialAd(),
         );
       },
     ),
   );
 }
+
+// ======================================================
+// Show Interstitial Ad
+// ======================================================
+
 void showInterstitialAd() {
+
   debugPrint("==============================");
   debugPrint("INTERSTITIAL DEBUG");
   debugPrint("Ready: $_isInterstitialReady");
-  debugPrint("Ad object: $_interstitialAd");
+  debugPrint("Ad: $_interstitialAd");
   debugPrint("==============================");
 
+
   if (!_isInterstitialReady || _interstitialAd == null) {
-    debugPrint("Interstitial NOT READY - Loading again...");
+
+    debugPrint("Interstitial not ready");
+
     loadInterstitialAd();
+
     return;
   }
 
-  if (_isInterstitialReady && _interstitialAd != null) {
 
-    _interstitialAd!.fullScreenContentCallback =
-        FullScreenContentCallback(
-      onAdDismissedFullScreenContent: (ad) {
-        debugPrint("Ad dismissed");
-        ad.dispose();
+  final ad = _interstitialAd!;
 
-        _interstitialAd = null;
-        _isInterstitialReady = false;
 
-        loadInterstitialAd();
-      },
-      onAdFailedToShowFullScreenContent: (ad, error) {
-        debugPrint("Failed to show: $error");
-        ad.dispose();
+  ad.fullScreenContentCallback =
+      FullScreenContentCallback(
 
-        _interstitialAd = null;
-        _isInterstitialReady = false;
+    onAdShowedFullScreenContent: (ad) {
 
-        loadInterstitialAd();
-      },
-    );
+      debugPrint("✅ Interstitial displayed");
 
-    debugPrint("Showing interstitial");
-     
-     final ad = _interstitialAd;
+    },
 
-    _interstitialAd = null;
-    _isInterstitialReady = false;
-     ad!.show();
 
-  } else {
-    debugPrint("Interstitial NOT READY");
-  }
+    onAdDismissedFullScreenContent: (ad) {
+
+      debugPrint("Interstitial closed");
+
+      ad.dispose();
+
+      loadInterstitialAd();
+
+    },
+
+
+    onAdFailedToShowFullScreenContent:
+        (ad, error) {
+
+      debugPrint(
+        "❌ Failed to show: $error",
+      );
+
+      ad.dispose();
+
+      loadInterstitialAd();
+
+    },
+
+  );
+
+
+  debugPrint("Showing Interstitial NOW");
+
+
+  ad.show();
+
+
+  _interstitialAd = null;
+
+  _isInterstitialReady = false;
+
 }
+
 
 
   // ======================================================
@@ -1107,7 +1169,7 @@ Future<List<StatusFile>> loadFromTree(Uri treeUri) async {
   crossAxisAlignment: CrossAxisAlignment.center,
   children: [
     Text(
-      "▶️🌿 TroVeGa 🌿▶️",
+      "▶️🌿 TroVeGa 🌿◀️",
       style: TextStyle(
         fontWeight: FontWeight.bold,
         fontSize: 18,
@@ -1563,8 +1625,9 @@ debugPrint("Download count before: $_downloadCount");
 _downloadCount++;
 
 debugPrint("Download count after: $_downloadCount");
-
-if (_downloadCount >= 2) {
+debugPrint("Interstitial ready status = $_isInterstitialReady");
+debugPrint("Interstitial object = $_interstitialAd");
+if (_downloadCount >= 3) {
   debugPrint("Trying to show interstitial...");
   _downloadCount = 0;
   showInterstitialAd();
